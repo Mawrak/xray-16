@@ -47,6 +47,10 @@ class XRSOUND_API CSoundRender_Source final : public CSound_source
     SoundDataInfo m_data_info{};
     SoundSourceInfo m_info{};
 
+#ifdef USE_PHONON
+    IPLAudioSettings m_ipl_audio_settings{};
+#endif
+
 private:
     void i_decompress(char* dest, u32 size);
     void i_decompress(float* dest, u32 size);
@@ -67,6 +71,8 @@ public:
 
     [[nodiscard]] const auto& data_info() const { return m_data_info; }
     [[nodiscard]] const auto&      info() const { return m_info; }
+
+    [[nodiscard]] auto& ipl_audio_settings() { return m_ipl_audio_settings; }
 
     [[nodiscard]] pcstr file_name() const override { return fname.c_str(); }
 
