@@ -1,23 +1,5 @@
 #include "stdafx.h"
 
-bool check_grass_shadow(light* L, CFrustum VB)
-{
-    // Grass shadows are allowed?
-    if (ps_ssfx_grass_shadows.x < 3 || !ps_r2_ls_flags.test(R2FLAG_SUN_DETAILS))
-        return false;
-
-    // Inside the range?
-    if (L->vis.distance > ps_ssfx_grass_shadows.z)
-        return false;
-
-    // Is in view? L->vis.visible?
-    u32 mask = 0xff;
-    if (!VB.testSphere(L->position, L->range * 0.6f, mask))
-        return false;
-
-    return true;
-}
-
 void CRender::render_lights(light_Package& LP)
 {
     //////////////////////////////////////////////////////////////////////////
@@ -111,12 +93,11 @@ void CRender::render_lights(light_Package& LP)
 
     const auto &calc_lights = [](Task &, void* data)
     {
-        ZoneScopedN("calc lights");
         const auto* task_data = static_cast<task_data_t*>(data);
         auto& dsgraph = RImplementation.get_context(task_data->batch_id);
         {
             auto* L = task_data->L;
-
+            
             L->svis[task_data->batch_id].begin();
 
             dsgraph.o.phase = PHASE_SMAP;
@@ -132,7 +113,6 @@ void CRender::render_lights(light_Package& LP)
 
     const auto& flush_lights = [&]()
     {
-        ZoneScopedN("flush lights");
         for (const auto& [L, task, batch_id] : lights_queue)
         {
             VERIFY(task);
@@ -155,14 +135,7 @@ void CRender::render_lights(light_Package& LP)
                 dsgraph.cmd_list.set_xform_project(L->X.S.project);
                 dsgraph.render_graph(0);
                 if (ps_r2_ls_flags.test(R2FLAG_SUN_DETAILS))
-                {
-                    if (check_grass_shadow(L, ViewBase))
-                    {
-                        Details->fade_distance = -1; // Use light position to calc "fade"
-                        Details->light_position.set(L->position);
-                        Details->Render(dsgraph.cmd_list);
-                    }
-                }
+                    Details->Render(dsgraph.cmd_list);
                 L->X.S.transluent = FALSE;
                 if (bSpecial)
                 {
@@ -219,7 +192,7 @@ void CRender::render_lights(light_Package& LP)
             task_data_t data;
             data.batch_id = batch_id;
             data.L = L;
-            data.task = &TaskScheduler->CreateTask(calc_lights, sizeof(data), (void*)&data);
+            data.task = &TaskScheduler->CreateTask("slight_calc", calc_lights, sizeof(data), (void*)&data);
             if (o.mt_calculate)
             {
                 TaskScheduler->PushTask(*data.task);

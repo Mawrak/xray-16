@@ -20,7 +20,7 @@ CBlender_LaEmB::CBlender_LaEmB()
     xr_strcpy(oT2_const, "$null");
 }
 
-LPCSTR CBlender_LaEmB::getComment()
+LPCSTR CBlender_LaEmB::getComment() 
 {
     return "LEVEL: (lmap+env*const)*base";
 }
@@ -136,10 +136,14 @@ void CBlender_LaEmB::Compile(CBlender_Compile& C)
         return;
     }
 
-    switch (C.iElement)
+    if (2 == C.iElement)
     {
-    case SE_R1_NORMAL_HQ:
-    case SE_R1_NORMAL_LQ:
+        if (bConstant)
+            compile_Lc(C);
+        else
+            compile_L(C);
+    }
+    else
     {
         switch (HW.Caps.raster.dwStages)
         {
@@ -157,17 +161,7 @@ void CBlender_LaEmB::Compile(CBlender_Compile& C)
                 compile_3(C);
             break;
         } // switch (HW.Caps.raster.dwStages)
-        break;
     }
-    case SE_R1_LMODELS:
-    {
-        if (bConstant)
-            compile_Lc(C);
-        else
-            compile_L(C);
-        break;
-    }
-    } // switch (C.iElement)
 }
 //
 void CBlender_LaEmB::compile_2(CBlender_Compile& C)

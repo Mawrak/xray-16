@@ -52,7 +52,6 @@ void CResourceManager::OnDeviceCreate(IReader* F)
     if (!Device.b_is_Ready)
         return;
 
-    ZoneScoped;
     string256 name;
 
 #ifndef _EDITOR
@@ -64,7 +63,6 @@ void CResourceManager::OnDeviceCreate(IReader* F)
     fs = F->open_chunk(0);
     if (fs)
     {
-        ZoneScopedN("Load constants");
         while (!fs->eof())
         {
             fs->r_stringZ(name, sizeof(name));
@@ -78,7 +76,6 @@ void CResourceManager::OnDeviceCreate(IReader* F)
     fs = F->open_chunk(1);
     if (fs)
     {
-        ZoneScopedN("Load matrices");
         while (!fs->eof())
         {
             fs->r_stringZ(name, sizeof(name));
@@ -92,7 +89,6 @@ void CResourceManager::OnDeviceCreate(IReader* F)
     fs = F->open_chunk(2);
     if (fs)
     {
-        ZoneScopedN("Load blenders");
         IReader* chunk = nullptr;
         int chunk_id = 0;
 
@@ -115,7 +111,7 @@ void CResourceManager::OnDeviceCreate(IReader* F)
                 chunk->seek(0);
                 B->Load(*chunk, desc.version);
 
-                auto I = m_blenders.emplace(xr_strdup(desc.cName), B);
+                auto I = m_blenders.insert(std::make_pair(xr_strdup(desc.cName), B));
                 R_ASSERT2(I.second, "shader.xr - found duplicate name!!!");
             }
             chunk->close();
@@ -129,8 +125,6 @@ void CResourceManager::OnDeviceCreate(IReader* F)
 
 void CResourceManager::OnDeviceCreate(LPCSTR shName)
 {
-    ZoneScoped;
-
 #ifdef _EDITOR
     if (!FS.exist(shName))
         return;
@@ -155,10 +149,12 @@ void CResourceManager::StoreNecessaryTextures()
     if (!m_necessary.empty())
         return;
 
-    m_necessary.reserve(m_textures.size());
-    for (auto& mtex : m_textures)
+    auto it = m_textures.begin();
+    auto it_e = m_textures.end();
+
+    for (; it != it_e; ++it)
     {
-        LPCSTR texture_name = mtex.first;
+        LPCSTR texture_name = it->first;
         if (strstr(texture_name, DELIMITER "levels" DELIMITER))
             continue;
         if (!strchr(texture_name, _DELIMITER))

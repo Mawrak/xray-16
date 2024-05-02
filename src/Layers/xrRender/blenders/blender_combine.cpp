@@ -192,9 +192,6 @@ void CBlender_combine::Compile(CBlender_Compile& C)
         C.r_dx11Texture("s_image", r2_RT_generic0);
         C.r_dx11Texture("s_bloom", r2_RT_bloom1);
         C.r_dx11Texture("s_distort", r2_RT_generic1);
-        C.r_dx11Texture("s_blur_2", r2_RT_blur_2);
-        C.r_dx11Texture("s_blur_4", r2_RT_blur_4);
-        C.r_dx11Texture("s_blur_8", r2_RT_blur_8);
 
         C.r_dx11Sampler("smp_nofilter");
         C.r_dx11Sampler("smp_rtlinear");
@@ -214,9 +211,6 @@ void CBlender_combine::Compile(CBlender_Compile& C)
         C.r_dx11Texture("s_image", r2_RT_generic0);
         C.r_dx11Texture("s_bloom", r2_RT_bloom1);
         C.r_dx11Texture("s_distort", r2_RT_generic1);
-        C.r_dx11Texture("s_blur_2", r2_RT_blur_2);
-        C.r_dx11Texture("s_blur_4", r2_RT_blur_4);
-        C.r_dx11Texture("s_blur_8", r2_RT_blur_8);
 
         C.r_dx11Sampler("smp_nofilter");
         C.r_dx11Sampler("smp_rtlinear");
@@ -235,9 +229,6 @@ void CBlender_combine::Compile(CBlender_Compile& C)
         C.r_dx11Texture("s_image", r2_RT_generic0);
         C.r_dx11Texture("s_bloom", r2_RT_bloom1);
         C.r_dx11Texture("s_distort", r2_RT_generic1);
-        C.r_dx11Texture("s_blur_2", r2_RT_blur_2);
-        C.r_dx11Texture("s_blur_4", r2_RT_blur_4);
-        C.r_dx11Texture("s_blur_8", r2_RT_blur_8);
 
         C.r_dx11Sampler("smp_nofilter");
         C.r_dx11Sampler("smp_rtlinear");
@@ -257,9 +248,6 @@ void CBlender_combine::Compile(CBlender_Compile& C)
         C.r_dx11Texture("s_image", r2_RT_generic0);
         C.r_dx11Texture("s_bloom", r2_RT_bloom1);
         C.r_dx11Texture("s_distort", r2_RT_generic1);
-        C.r_dx11Texture("s_blur_2", r2_RT_blur_2);
-        C.r_dx11Texture("s_blur_4", r2_RT_blur_4);
-        C.r_dx11Texture("s_blur_8", r2_RT_blur_8);
 
         C.r_dx11Sampler("smp_nofilter");
         C.r_dx11Sampler("smp_rtlinear");
@@ -277,9 +265,9 @@ void CBlender_combine_msaa::Compile(CBlender_Compile& C)
     IBlender::Compile(C);
 
     if (Name)
-        RImplementation.m_MSAASample = atoi(Definition);
+        GEnv.Render->m_MSAASample = atoi(Definition);
     else
-        RImplementation.m_MSAASample = -1;
+        GEnv.Render->m_MSAASample = -1;
 
 #if RENDER == R_GL
     switch (C.iElement)
@@ -402,9 +390,6 @@ void CBlender_combine_msaa::Compile(CBlender_Compile& C)
         C.r_dx11Texture("s_image", r2_RT_generic0);
         C.r_dx11Texture("s_bloom", r2_RT_bloom1);
         C.r_dx11Texture("s_distort", r2_RT_generic1_r);
-        C.r_dx11Texture("s_blur_2", r2_RT_blur_2);
-        C.r_dx11Texture("s_blur_4", r2_RT_blur_4);
-        C.r_dx11Texture("s_blur_8", r2_RT_blur_8);
 
         C.r_dx11Sampler("smp_nofilter");
         C.r_dx11Sampler("smp_rtlinear");
@@ -424,9 +409,6 @@ void CBlender_combine_msaa::Compile(CBlender_Compile& C)
         C.r_dx11Texture("s_image", r2_RT_generic0);
         C.r_dx11Texture("s_bloom", r2_RT_bloom1);
         C.r_dx11Texture("s_distort", r2_RT_generic1_r);
-        C.r_dx11Texture("s_blur_2", r2_RT_blur_2);
-        C.r_dx11Texture("s_blur_4", r2_RT_blur_4);
-        C.r_dx11Texture("s_blur_8", r2_RT_blur_8);
 
         C.r_dx11Sampler("smp_nofilter");
         C.r_dx11Sampler("smp_rtlinear");
@@ -445,9 +427,6 @@ void CBlender_combine_msaa::Compile(CBlender_Compile& C)
         C.r_dx11Texture("s_image", r2_RT_generic0);
         C.r_dx11Texture("s_bloom", r2_RT_bloom1);
         C.r_dx11Texture("s_distort", r2_RT_generic1_r);
-        C.r_dx11Texture("s_blur_2", r2_RT_blur_2);
-        C.r_dx11Texture("s_blur_4", r2_RT_blur_4);
-        C.r_dx11Texture("s_blur_8", r2_RT_blur_8);
 
         C.r_dx11Sampler("smp_nofilter");
         C.r_dx11Sampler("smp_rtlinear");
@@ -467,9 +446,6 @@ void CBlender_combine_msaa::Compile(CBlender_Compile& C)
         C.r_dx11Texture("s_image", r2_RT_generic0);
         C.r_dx11Texture("s_bloom", r2_RT_bloom1);
         C.r_dx11Texture("s_distort", r2_RT_generic1_r);
-        C.r_dx11Texture("s_blur_2", r2_RT_blur_2);
-        C.r_dx11Texture("s_blur_4", r2_RT_blur_4);
-        C.r_dx11Texture("s_blur_8", r2_RT_blur_8);
 
         C.r_dx11Sampler("smp_nofilter");
         C.r_dx11Sampler("smp_rtlinear");
@@ -479,6 +455,6 @@ void CBlender_combine_msaa::Compile(CBlender_Compile& C)
         break;
     }
 #endif
-    RImplementation.m_MSAASample = -1;
+    GEnv.Render->m_MSAASample = -1;
 }
 #endif

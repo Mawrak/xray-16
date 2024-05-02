@@ -16,8 +16,6 @@ void CALLBACK OnDebugCallback(GLenum /*source*/, GLenum /*type*/, GLuint id, GLe
         Log(message, id);
 }
 
-static_assert(std::is_same_v<decltype(&OnDebugCallback), GLDEBUGPROC>);
-
 void UpdateVSync()
 {
     if (psDeviceFlags.test(rsVSync))
@@ -72,8 +70,6 @@ void CHW::OnAppDeactivate()
 //////////////////////////////////////////////////////////////////////
 void CHW::CreateDevice(SDL_Window* hWnd)
 {
-    ZoneScoped;
-
     m_window = hWnd;
 
     R_ASSERT(m_window);
@@ -186,8 +182,6 @@ void CHW::DestroyDevice()
 //////////////////////////////////////////////////////////////////////
 void CHW::Reset()
 {
-    ZoneScoped;
-
     CHK_GL(glDeleteFramebuffers(1, &pFB));
     UpdateViews();
     UpdateVSync();

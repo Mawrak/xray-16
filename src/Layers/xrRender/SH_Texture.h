@@ -10,29 +10,42 @@ class ENGINE_API CTheoraSurface;
 class ECORE_API CTexture : public xr_resource_named
 {
 public:
+#if defined(USE_DX9)
+    enum MaxTextures
+    {
+        mtMaxPixelShaderTextures = 16,
+        mtMaxVertexShaderTextures = 4,
+        mtMaxCombinedShaderTextures =
+        mtMaxPixelShaderTextures
+        + mtMaxVertexShaderTextures
+    };
+#elif defined(USE_DX11) || defined(USE_OGL)
     enum	MaxTextures
     {
         //	Actually these values are 128
         mtMaxPixelShaderTextures = 16,
         mtMaxVertexShaderTextures = 4,
         mtMaxGeometryShaderTextures = 16,
-#ifdef USE_DX11
+#	ifdef USE_DX11
         mtMaxHullShaderTextures = 16,
         mtMaxDomainShaderTextures = 16,
         mtMaxComputeShaderTextures = 16,
-#endif
+#	endif
         mtMaxCombinedShaderTextures =
         mtMaxPixelShaderTextures
         + mtMaxVertexShaderTextures
         + mtMaxGeometryShaderTextures
-#ifdef USE_DX11
+#	ifdef USE_DX11
         + mtMaxHullShaderTextures
         + mtMaxDomainShaderTextures
         + mtMaxComputeShaderTextures
-#endif
+#	endif
     };
+#else
+#   error No graphics API selected or enabled!
+#endif
 
-#if defined(USE_DX11)
+#if defined(USE_DX9) || defined(USE_DX11)
     //	Since DX11 allows up to 128 unique textures,
     //	distance between enum values should be at leas 128
     enum ResourceShaderType //	Don't change this since it's hardware-dependent
@@ -74,7 +87,7 @@ public:
     void Unload();
     // void Apply(u32 dwStage);
 
-#if defined(USE_DX11)
+#if defined(USE_DX9) || defined(USE_DX11)
     void surface_set(ID3DBaseTexture* surf);
     [[nodiscard]] ID3DBaseTexture* surface_get() const;
 #elif defined(USE_OGL)
@@ -159,9 +172,8 @@ public: //	Public class members (must be encapsulated further)
     int last_slice{ -1 };
 
 private:
-#if defined(USE_DX11)
-    ID3DBaseTexture* pSurface{};
-    ID3DBaseTexture* pTempSurface{};
+#if defined(USE_DX9) || defined(USE_DX11)
+    ID3DBaseTexture* pSurface;
     // Sequence data
     xr_vector<ID3DBaseTexture*> seqDATA;
 

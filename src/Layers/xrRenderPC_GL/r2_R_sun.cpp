@@ -130,7 +130,7 @@ Frustum::Frustum(const glm::mat4* matrix)
     {
         camPlanes[p] = glm::normalize(planes[p]);
         // build a bit-field that will tell us the indices for the nearest and farthest vertices from each plane...
-        nVertexLUT[p] = (camPlanes[p].x < 0.f ? 1 : 0) | (camPlanes[p].y < 0.f ? 2 : 0) | (camPlanes[p].z < 0.f ? 4 : 0);
+        nVertexLUT[p] = (camPlanes[p].x < 0.f ? 1 : 0) | (camPlanes[p].y < 0.f ? 2 : 0) | (camPlanes[p].z < 0.f ? 4 : 0); 
     }
 
     for (int i = 0; i < 8; i++) // compute extrema
@@ -328,7 +328,7 @@ void render_sun_old::init()
     VERIFY(context_id != R_dsgraph_structure::INVALID_CONTEXT_ID);
 }
 
-void render_sun_old::render_sun() const
+void render_sun_old::render_sun()
 {
     PIX_EVENT(render_sun);
     glm::mat4 m_LightViewProj;
@@ -353,20 +353,17 @@ void render_sun_old::render_sun() const
         // Lets begin from base frustum
         DumbConvexVolume<false> hull;
         {
-            hull.points.reserve(std::size(sun::corners));
-            hull.polys.reserve(std::size(sun::facetable));
-
-            for (const auto& corner : sun::corners)
+            hull.points.reserve(8);
+            for (auto corner : sun::corners)
             {
                 Fvector3 xf = wform(ex_full_inverse, corner);
-                hull.points.emplace_back(xf);
+                hull.points.push_back(xf);
             }
             for (auto& plane : sun::facetable)
             {
-                auto& poly = hull.polys.emplace_back();
-                poly.points.reserve(std::size(plane));
-                for (const int pt : plane)
-                    poly.points.emplace_back(pt);
+                hull.polys.emplace_back();
+                for (int pt : plane)
+                    hull.polys.back().points.push_back(pt);
             }
         }
         hull.compute_caster_model(cull_planes, sun->direction);
@@ -394,9 +391,9 @@ void render_sun_old::render_sun() const
         // projection: box
         Fbox frustum_bb;
         frustum_bb.invalidate();
-        for (const auto& point : hull.points)
+        for (int it = 0; it < 8; it++)
         {
-            Fvector xf = wform(mdir_View, point);
+            Fvector xf = wform(mdir_View, hull.points[it]);
             frustum_bb.modify(xf);
         }
         Fbox& bb = frustum_bb;
@@ -674,14 +671,13 @@ void render_sun_old::render_sun() const
         DumbClipper view_clipper;
         glm::mat4 xform = m_LightViewProj;
         view_clipper.frustum.CreateFromMatrix(*(Fmatrix*)glm::value_ptr(ex_full), FRUSTUM_P_ALL);
-        view_clipper.planes.reserve(view_clipper.frustum.p_count);
         for (size_t p = 0; p < view_clipper.frustum.p_count; p++)
         {
             Fplane& P = view_clipper.frustum.planes [p];
             view_clipper.planes.emplace_back(P.n.x, P.n.y, P.n.z, P.d);
         }
 
-        //
+        // 
         Fbox3 b_casters, b_receivers;
         Fvector3 pt;
 
@@ -708,7 +704,7 @@ void render_sun_old::render_sun() const
             x_full.mul(x_project, Device.mView);
             XRMatrixInverse(&x_full_inverse, nullptr, x_full);
         }
-        for (const auto& corner : sun::corners)
+        for (auto corner : sun::corners)
         {
             pt = wform(x_full_inverse, corner); // world space
             pt = wform(xform, pt); // trapezoid space
@@ -835,20 +831,17 @@ void render_sun_old::render_sun_near()
 #endif
         t_volume hull;
         {
-            hull.points.reserve(std::size(sun::corners));
-            hull.polys.reserve(std::size(sun::facetable));
-
-            for (const auto& corner : sun::corners)
+            hull.points.reserve(9);
+            for (auto corner : sun::corners)
             {
                 Fvector3 xf = wform(ex_full_inverse, corner);
-                hull.points.emplace_back(xf);
+                hull.points.push_back(xf);
             }
-            for (const auto& plane : sun::facetable)
+            for (auto& plane : sun::facetable)
             {
-                auto& poly = hull.polys.emplace_back();
-                poly.points.reserve(std::size(plane));
-                for (const int pt : plane)
-                    poly.points.emplace_back(pt);
+                hull.polys.emplace_back();
+                for (int pt : plane)
+                    hull.polys.back().points.push_back(pt);
             }
         }
         hull.compute_caster_model(cull_planes, sun->direction);
@@ -880,9 +873,10 @@ void render_sun_old::render_sun_near()
         //	Simple
         Fbox frustum_bb;
         frustum_bb.invalidate();
-        for (const auto& point : hull.points)
+        for (int it = 0; it < 8; it++)
         {
-            Fvector xf = wform(mdir_View, point);
+            // for (int it=0; it<9; it++)	{
+            Fvector xf = wform(mdir_View, hull.points[it]);
             frustum_bb.modify(xf);
         }
         Fbox& bb = frustum_bb;
@@ -891,7 +885,7 @@ void render_sun_old::render_sun_near()
                                   bb.vMin.z - tweak_ortho_xform_initial_offs, bb.vMax.z);
 
         // build viewport xform
-        const float view_dim = float(RImplementation.o.smapsize);
+        float view_dim = float(RImplementation.o.smapsize);
         glm::mat4 m_viewport =
         {
             view_dim / 2.f, 0.0f, 0.0f, 0.0f,
@@ -919,9 +913,9 @@ void render_sun_old::render_sun_near()
         scissor.invalidate();
         glm::mat4 scissor_xf;
         scissor_xf = m_viewport * cull_xform;
-        for (const auto& point : hull.points)
+        for (int it = 0; it < 9; it++)
         {
-            Fvector xf = wform(scissor_xf, point);
+            Fvector xf = wform(scissor_xf, hull.points[it]);
             scissor.modify(xf);
         }
         s32 limit = RImplementation.o.smapsize - 1;

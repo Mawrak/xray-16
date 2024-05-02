@@ -17,7 +17,7 @@
 #else
 #include "xrEngine/IGame_Persistent.h"
 #include "xrEngine/Environment.h"
-#if defined(XR_ARCHITECTURE_X86) || defined(XR_ARCHITECTURE_X64) || defined(XR_ARCHITECTURE_E2K) || defined(XR_ARCHITECTURE_PPC64)
+#if defined(XR_ARCHITECTURE_X86) || defined(XR_ARCHITECTURE_X64) || defined(XR_ARCHITECTURE_E2K)
 #include <xmmintrin.h>
 #elif defined(XR_ARCHITECTURE_ARM) || defined(XR_ARCHITECTURE_ARM64)
 #include "sse2neon/sse2neon.h"
@@ -82,8 +82,6 @@ void CDetailManager::SSwingValue::lerp(const SSwingValue& A, const SSwingValue& 
 // XXX stats: add to statistics
 CDetailManager::CDetailManager() : xrc("detail manager")
 {
-    ZoneScoped;
-
     dtFS = nullptr;
     dtSlots = nullptr;
     soft_Geom = nullptr;
@@ -112,22 +110,20 @@ CDetailManager::CDetailManager() : xrc("detail manager")
     cache = (Slot***)xr_malloc(dm_cache_line * sizeof(Slot**));
     for (u32 i = 0; i < dm_cache_line; ++i)
         cache[i] = (Slot**)xr_malloc(dm_cache_line * sizeof(Slot*));
-
+        
     cache_pool = (Slot *)xr_malloc(dm_cache_size * sizeof(Slot));
-
+    
     for (u32 i = 0; i < dm_cache_size; ++i)
         new(&cache_pool[i]) Slot();
     /*
     CacheSlot1 cache_level1[dm_cache1_line][dm_cache1_line];
     Slot* cache [dm_cache_line][dm_cache_line]; // grid-cache itself
-    Slot cache_pool [dm_cache_size]; // just memory for slots
+    Slot cache_pool [dm_cache_size]; // just memory for slots 
     */
 }
 
 CDetailManager::~CDetailManager()
 {
-    ZoneScoped;
-
     for (u32 i = 0; i < dm_cache_size; ++i)
         cache_pool[i].~Slot();
     xr_free(cache_pool);
@@ -158,8 +154,6 @@ void dump(CDetailManager::vis_list& lst)
 */
 void CDetailManager::Load()
 {
-    ZoneScoped;
-
     // Open file stream
     if (!FS.exist("$level$", "level.details"))
     {
@@ -175,7 +169,6 @@ void CDetailManager::Load()
     dtFS->r_chunk_safe(0, &dtH, sizeof(dtH));
     R_ASSERT(dtH.version() == DETAIL_VERSION);
     u32 m_count = dtH.object_count();
-    objects.reserve(m_count);
 
     // Models
     IReader* m_fs = dtFS->open_chunk(1);
@@ -225,7 +218,6 @@ void CDetailManager::Load()
 #endif
 void CDetailManager::Unload()
 {
-    ZoneScoped;
     if (UseVS())
         hw_Unload();
     else
@@ -248,14 +240,12 @@ extern ECORE_API float r_ssaDISCARD;
 
 void CDetailManager::UpdateVisibleM()
 {
-    ZoneScoped;
-
     for (int i = 0; i != 3; ++i)
         for (auto& vis : m_visibles[i])
             vis.clear();
 
     CFrustum View;
-    View.CreateFromMatrix(Device.mFullTransform, FRUSTUM_P_LRTB + FRUSTUM_P_FAR);
+    View.CreateFromMatrix(Device.mFullTransformSaved, FRUSTUM_P_LRTB + FRUSTUM_P_FAR);
 
     float fade_limit = dm_fade;
     fade_limit = fade_limit * fade_limit;
@@ -277,9 +267,7 @@ void CDetailManager::UpdateVisibleM()
                 continue;
             }
             u32 mask = 0xff;
-
-            u32 res = View.testSphere(MS.vis.sphere.P, MS.vis.sphere.R, mask);
-
+            u32 res = View.testSAABB(MS.vis.sphere.P, MS.vis.sphere.R, MS.vis.box.data(), mask);
             if (fcvNone == res)
             {
                 continue; // invisible-view frustum
@@ -306,7 +294,7 @@ void CDetailManager::UpdateVisibleM()
                 if (fcvPartial == res)
                 {
                     u32 _mask = mask;
-                    u32 _res = View.testSphere(S.vis.sphere.P, S.vis.sphere.R, _mask);
+                    u32 _res = View.testSAABB(S.vis.sphere.P, S.vis.sphere.R, S.vis.box.data(), _mask);
                     if (fcvNone == _res)
                     {
                         continue; // invisible-view frustum
@@ -358,8 +346,6 @@ void CDetailManager::UpdateVisibleM()
 
                             sp.r_items[vis_id].push_back(siIT);
 
-                            Item.distance = dist_sq;
-                            Item.position = S.vis.sphere.P;
                             // 2 visible[vis_id][sp.id].push_back(&Item);
                         }
                     }
@@ -439,8 +425,6 @@ void CDetailManager::MT_CALC()
         return;
 #endif
 
-    ZoneScoped;
-
     EYE = Device.vCameraPosition;
 
     MT.Enter();
@@ -458,27 +442,4 @@ void CDetailManager::MT_CALC()
             m_frame_calc = Device.dwFrame;
         }
     MT.Leave();
-}
-
-void CDetailManager::details_clear()
-{
-    // Disable fade, next render will be scene
-    fade_distance = 99999;
-
-    if (ps_ssfx_grass_shadows.x <= 0)
-        return;
-
-    for (u32 x = 0; x < 3; x++)
-    {
-        vis_list& list = m_visibles[x];
-        for (u32 O = 0; O < objects.size(); O++)
-        {
-            CDetail & Object = *objects[O];
-            xr_vector<SlotItemVec*>&vis = list[O];
-            if (!vis.empty())
-            {
-                vis.erase(vis.begin(), vis.end());
-            }
-        }
-    }
 }

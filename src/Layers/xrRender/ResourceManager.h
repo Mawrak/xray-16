@@ -37,13 +37,20 @@ public:
     using map_RT = xr_map<const char*, CRT*, str_pred>;
     //	DX10 cut DEFINE_MAP_PRED(const char*,CRTC*,			map_RTC,		map_RTCIt,			str_pred);
     using map_VS = xr_map<const char*, SVS*, str_pred>;
+
+#if defined(USE_DX11) || defined(USE_OGL)
     using map_GS = xr_map<const char*, SGS*, str_pred>;
+#endif
+
+#if defined(USE_DX11) || defined(USE_OGL)
     using map_HS = xr_map<const char*, SHS*, str_pred>;
     using map_DS = xr_map<const char*, SDS*, str_pred>;
     using map_CS = xr_map<const char*, SCS*, str_pred>;
+#endif
 #if defined(USE_OGL)
     using map_PP = xr_map<const char*, SPP*, str_pred>;
 #endif
+
     using map_PS = xr_map<const char*, SPS*, str_pred>;
     using map_TD = xr_map<const char*, texture_detail, str_pred>;
 
@@ -57,10 +64,16 @@ private:
     //	DX10 cut map_RTC												m_rtargets_c;
     map_VS m_vs;
     map_PS m_ps;
+
+#if defined(USE_DX11) || defined(USE_OGL)
     map_GS m_gs;
+#endif
+
+#if defined(USE_DX11) || defined(USE_OGL)
     map_DS m_ds;
     map_HS m_hs;
     map_CS m_cs;
+#endif
 #if defined(USE_OGL)
     map_PP m_pp;
 #endif
@@ -158,9 +171,12 @@ public:
     void _DeletePP(const SPP* p);
 #endif
 
+#if defined(USE_DX11) || defined(USE_OGL)
     SGS* _CreateGS(LPCSTR Name);
     void _DeleteGS(const SGS* GS);
+#endif
 
+#if defined(USE_DX11) || defined(USE_OGL)
     SHS* _CreateHS(LPCSTR Name);
     void _DeleteHS(const SHS* HS);
 
@@ -169,6 +185,7 @@ public:
 
     SCS* _CreateCS(LPCSTR Name);
     void _DeleteCS(const SCS* CS);
+#endif
 
     SPS* _CreatePS(LPCSTR Name);
     void _DeletePS(const SPS* PS);
@@ -183,7 +200,11 @@ public:
     SState* _CreateState(SimulatorStates& Code);
     void _DeleteState(const SState* SB);
 
-    SDeclaration* _CreateDecl(const VertexElement* dcl);
+#ifdef USE_OGL
+    SDeclaration* _CreateDecl (u32 FVF);
+#endif
+
+    SDeclaration* _CreateDecl(VertexElement* dcl);
     void _DeleteDecl(const SDeclaration* dcl);
 
     STextureList* _CreateTextureList(STextureList& L);
@@ -234,7 +255,7 @@ public:
         v_constant_setup.emplace_back(shared_str(name), s);
     }
 
-    SGeometry* CreateGeom(const VertexElement* decl, VertexBufferHandle vb, IndexBufferHandle ib);
+    SGeometry* CreateGeom(VertexElement* decl, VertexBufferHandle vb, IndexBufferHandle ib);
     SGeometry* CreateGeom(u32 FVF, VertexBufferHandle vb, IndexBufferHandle ib);
 
     void DeleteGeom(const SGeometry* VS);

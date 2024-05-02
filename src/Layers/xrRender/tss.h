@@ -4,6 +4,7 @@
 
 #include "tss_def.h"
 
+#if defined(USE_DX11) || defined(USE_OGL)
 enum XRDX11SAMPLERSTATETYPE
 {
     XRDX11SAMP_ANISOTROPICFILTER = 256,
@@ -15,6 +16,7 @@ enum XRDX11RENDERSTATETYPE
 {
     XRDX11RS_ALPHATOCOVERAGE = 1024
 };
+#endif // !USE_DX9
 
 class CSimulatorTSS
 {

@@ -37,14 +37,12 @@ struct i_render_phase
         o.mt_draw_enabled = false;
     }
 
-    virtual ~i_render_phase() = default;
-
     ICF void run()
     {
         if (!o.active)
             return;
 
-        main_task = &TaskScheduler->CreateTask({ this, &i_render_phase::calculate_task });
+        main_task = &TaskScheduler->CreateTask("phase_calculate", { this, &i_render_phase::calculate_task });
 
         if (o.mt_calc_enabled)
         {
@@ -84,7 +82,7 @@ struct i_render_phase
 
         if (o.mt_draw_enabled)
         {
-            draw_task = &TaskScheduler->AddTask(*main_task, { this, &i_render_phase::render_task });
+            draw_task = &TaskScheduler->AddTask(*main_task, "phase_render", { this, &i_render_phase::render_task });
         }
     }
 
@@ -96,7 +94,7 @@ struct i_render_phase
     virtual void init() = 0;
     virtual void calculate() = 0;
     virtual void render() = 0;
-    virtual void flush() {}
+    virtual void flush() {};
 
     struct options_t
     {
@@ -167,7 +165,7 @@ struct render_sun_old : public i_render_phase
         render_sun_filtered();
     }
 
-    void render_sun() const;
+    void render_sun();
     void render_sun_near();
     void render_sun_filtered() const;
 
@@ -234,6 +232,7 @@ public:
         u32 nvdbt : 1;
 
         u32 nullrt : 1;
+        u32 no_ram_textures : 1; // don't keep textures in RAM
         u32 ffp : 1; // don't use shaders, only fixed-function pipeline or software processing
 
         u32 distortion : 1;
@@ -272,9 +271,6 @@ public:
         u32 support_rt_arrays : 1;
 
         float forcegloss_v;
-
-        // Yohji - New shader support
-        u32 new_shader_support : 1;
     } o;
 
     struct RenderR2Statistics
@@ -404,13 +400,14 @@ public:
     GenerationLevel GetGeneration() const override { return IRender::GENERATION_R2; }
     bool is_sun_static() override { return o.sunstatic; }
 
-#if defined(USE_DX11)
+#if defined(USE_DX9)
+    BackendAPI GetBackendAPI() const override { return IRender::BackendAPI::D3D9; }
+    u32 get_dx_level() override { return 0x00090000; }
+    pcstr getShaderPath() override { return "r2\\"; }
+#elif defined(USE_DX11)
     BackendAPI GetBackendAPI() const override { return IRender::BackendAPI::D3D11; }
     u32 get_dx_level() override { return HW.FeatureLevel >= D3D_FEATURE_LEVEL_10_1 ? 0x000A0001 : 0x000A0000; }
-    pcstr getShaderPath() override
-    {
-        return o.new_shader_support ? "r5\\" : "r3\\";
-    }
+    pcstr getShaderPath() override { return "r3\\"; }
 #elif defined(USE_OGL)
     BackendAPI GetBackendAPI() const override { return IRender::BackendAPI::OpenGL; }
     u32 get_dx_level() override { return /*HW.pDevice1?0x000A0001:*/0x000A0000; }
@@ -420,7 +417,6 @@ public:
 #endif
 
     // Loading / Unloading
-    void OnDeviceCreate(pcstr shName) override;
     void create() override;
     void destroy() override;
     void reset_begin() override;
@@ -429,7 +425,7 @@ public:
     void level_Load(IReader*) override;
     void level_Unload() override;
 
-#if defined(USE_DX11)
+#if defined(USE_DX9) || defined(USE_DX11)
     ID3DBaseTexture* texture_load(pcstr fname, u32& msize);
 #elif defined(USE_OGL)
     GLuint           texture_load(pcstr fname, u32& msize, GLenum& ret_desc);
@@ -495,7 +491,8 @@ public:
     void Render() override;
     void RenderMenu() override;
 
-    void Screenshot(ScreenshotMode mode = SM_NORMAL, pcstr name = nullptr) override;
+    void Screenshot(ScreenshotMode mode = SM_NORMAL, LPCSTR name = nullptr) override;
+    void Screenshot(ScreenshotMode mode, CMemoryWriter& memory_writer) override;
     void ScreenshotAsyncBegin() override;
     void ScreenshotAsyncEnd(CMemoryWriter& memory_writer) override;
     void OnFrame() override;
@@ -517,18 +514,28 @@ public:
     CRender();
     ~CRender() override;
 
+#if defined(USE_DX9)
+    // nothing
+#elif defined(USE_DX11)
     void addShaderOption(pcstr name, pcstr value);
     void clearAllShaderOptions() { m_ShaderOptions.clear(); }
 
 private:
-#if defined(USE_DX11)
     xr_vector<D3D_SHADER_MACRO> m_ShaderOptions;
 #elif defined(USE_OGL)
+    void addShaderOption(pcstr name, pcstr value);
+    void clearAllShaderOptions() { m_ShaderOptions.clear(); }
+
+private:
     xr_string m_ShaderOptions;
 #else
 #   error No graphics API selected or enabled!
 #endif
 
+protected:
+    void ScreenshotImpl(ScreenshotMode mode, LPCSTR name, CMemoryWriter* memory_writer) override;
+
+private:
     IRender_Sector::sector_id_t largest_sector_id{ IRender_Sector::INVALID_SECTOR_ID };
 };
 

@@ -28,8 +28,6 @@ void fix_texture_thm_name(pstr fn)
 
 void CTextureDescrMngr::LoadLTX(pcstr initial, bool listTHM)
 {
-    ZoneScoped;
-
     string_path fname;
     FS.update_path(fname, initial, "textures.ltx");
 
@@ -54,7 +52,6 @@ void CTextureDescrMngr::LoadLTX(pcstr initial, bool listTHM)
 
         const auto processAssociation = [&](const CInifile::Item& item)
         {
-            ZoneScopedN("Process association");
             if (listTHM)
                 Msg("\t\t%s = %s", item.first.c_str(), item.second.c_str());
 
@@ -127,8 +124,6 @@ void CTextureDescrMngr::LoadLTX(pcstr initial, bool listTHM)
 
 void CTextureDescrMngr::LoadTHM(LPCSTR initial, bool listTHM)
 {
-    ZoneScoped;
-
     FS_FileSet flist;
     FS.file_list(flist, initial, FS_ListFiles, "*.thm");
 
@@ -146,7 +141,6 @@ void CTextureDescrMngr::LoadTHM(LPCSTR initial, bool listTHM)
     Lock lock;
     const auto processFile = [&](const FS_File& it)
     {
-        ZoneScopedN("Process file");
         // Alundaio: Print list of *.thm to find bad .thms!
         if (listTHM)
             Log("\t", it.name.c_str());
@@ -222,7 +216,6 @@ void CTextureDescrMngr::LoadTHM(LPCSTR initial, bool listTHM)
 
 void CTextureDescrMngr::Load()
 {
-    ZoneScoped;
 #ifndef MASTER_GOLD
     CTimer timer;
     timer.Start();
@@ -253,8 +246,6 @@ void CTextureDescrMngr::UnLoad()
 
 CTextureDescrMngr::~CTextureDescrMngr()
 {
-    ZoneScoped;
-
     for (auto& it : m_detail_scalers)
         xr_delete(it.second);
 

@@ -3,8 +3,6 @@
 
 void D3DXRenderBase::CreateQuadIB()
 {
-    ZoneScoped;
-
     constexpr auto triCount = 4 * 1024;
     constexpr auto idxCount = triCount * 2 * 3;
     constexpr auto idxSize = idxCount * sizeof(u16);

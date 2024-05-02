@@ -1,7 +1,7 @@
 #include "stdafx.h"
 #pragma hdrstop
 
-#if defined(USE_DX11)
+#if defined(USE_DX9) || defined(USE_DX11)
 #include <DirectXMath.h>
 #endif
 
@@ -9,8 +9,15 @@ void CBackend::OnFrameEnd()
 {
     if (!GEnv.isDedicatedServer)
     {
-#if defined(USE_DX11)
+#if !defined(USE_DX9) && !defined(USE_OGL)
         HW.get_context(CHW::IMM_CTX_ID)->ClearState();
+#elif defined(USE_DX9)
+        for (u32 stage = 0; stage < HW.Caps.raster.dwStages; stage++)
+            CHK_DX(HW.pDevice->SetTexture(0, nullptr));
+        CHK_DX(HW.pDevice->SetStreamSource(0, nullptr, 0, 0));
+        CHK_DX(HW.pDevice->SetIndices(nullptr));
+        CHK_DX(HW.pDevice->SetVertexShader(nullptr));
+        CHK_DX(HW.pDevice->SetPixelShader(nullptr));
 #endif
         Invalidate();
     }
@@ -133,7 +140,39 @@ void CBackend::Invalidate()
 
 void CBackend::set_ClipPlanes(u32 _enable, Fplane* _planes /*=NULL */, u32 count /* =0*/)
 {
-#if defined(USE_DX11) || defined(USE_OGL)
+#if defined(USE_DX9)
+    if (0 == HW.Caps.geometry.dwClipPlanes)
+        return;
+    if (!_enable)
+    {
+        CHK_DX(HW.pDevice->SetRenderState(D3DRS_CLIPPLANEENABLE, FALSE));
+        return;
+    }
+
+    // Enable and setup planes
+    VERIFY(_planes && count);
+    if (count > HW.Caps.geometry.dwClipPlanes)
+        count = HW.Caps.geometry.dwClipPlanes;
+
+    using namespace DirectX;
+
+    const XMMATRIX transform = XMLoadFloat4x4(reinterpret_cast<XMFLOAT4X4*>(&Device.mFullTransform));
+    XMMATRIX worldToClipMatrixIT = XMMatrixInverse(nullptr, transform);
+    worldToClipMatrixIT = XMMatrixTranspose(worldToClipMatrixIT);
+
+    for (u32 it = 0; it < count; it++)
+    {
+        Fplane& P = _planes[it];
+        XMFLOAT4 planeClip;
+        XMVECTOR planeWorld = XMPlaneNormalize(XMVectorSet(-P.n.x, -P.n.y, -P.n.z, -P.d));
+        XMStoreFloat4(&planeClip, XMPlaneTransform(planeWorld, worldToClipMatrixIT));
+        CHK_DX(HW.pDevice->SetClipPlane(it, reinterpret_cast<float*>(&planeClip)));
+    }
+
+    // Enable them
+    u32 e_mask = (1 << count) - 1;
+    CHK_DX(HW.pDevice->SetRenderState(D3DRS_CLIPPLANEENABLE, e_mask));	
+#elif defined(USE_DX11) || defined(USE_OGL)
     // TODO: DX11: Implement in the corresponding vertex shaders
     // Use this to set up location, were shader setup code will get data
     // VERIFY(!"CBackend::set_ClipPlanes not implemented!");
@@ -143,7 +182,7 @@ void CBackend::set_ClipPlanes(u32 _enable, Fplane* _planes /*=NULL */, u32 count
     return;
 #else
 #   error No graphics API selected or enabled!
-#endif
+#endif //USE_DX9
 }
 
 #ifndef DEDICATED_SREVER
@@ -153,7 +192,9 @@ void CBackend::set_ClipPlanes(u32 _enable, Fmatrix* _xform /*=NULL */, u32 fmask
         return;
     if (!_enable)
     {
-#if defined(USE_DX11) || defined(USE_OGL)
+#if defined(USE_DX9)
+        CHK_DX(HW.pDevice->SetRenderState(D3DRS_CLIPPLANEENABLE, FALSE));
+#elif defined(USE_DX11) || defined(USE_OGL)
     // TODO: DX11: Implement in the corresponding vertex shaders
     // Use this to set up location, were shader setup code will get data
     // VERIFY(!"CBackend::set_ClipPlanes not implemented!");
@@ -168,12 +209,12 @@ void CBackend::set_ClipPlanes(u32 _enable, Fmatrix* _xform /*=NULL */, u32 fmask
     set_ClipPlanes(_enable, F.planes, F.p_count);
 }
 
-void CBackend::set_Textures(STextureList* textures_list)
+void CBackend::set_Textures(STextureList* _T)
 {
     // TODO: expose T invalidation method
-    //if (T == textures_list) // disabled due to cases when the set of resources the same, but different srv is need to be bind
+    //if (T == _T) // disabled due to cases when the set of resources the same, but different srv is need to be bind
     //    return;
-    T = textures_list;
+    T = _T;
     // If resources weren't set at all we should clear from resource #0.
     int _last_ps = -1;
     int _last_vs = -1;
@@ -183,12 +224,12 @@ void CBackend::set_Textures(STextureList* textures_list)
     int _last_ds = -1;
     int _last_cs = -1;
 #endif
-    auto it = textures_list->begin();
-    const auto end = textures_list->end();
+    STextureList::iterator _it = _T->begin();
+    STextureList::iterator _end = _T->end();
 
-    for (; it != end; ++it)
+    for (; _it != _end; ++_it)
     {
-        std::pair<u32, ref_texture>& loader = *it;
+        std::pair<u32, ref_texture>& loader = *_it;
         u32 load_id = loader.first;
         CTexture* load_surf = loader.second._get();
         //if (load_id < 256) {
@@ -341,7 +382,9 @@ void CBackend::set_Textures(STextureList* textures_list)
             continue;
 
         textures_ps[_last_ps] = nullptr;
-#if defined(USE_DX11)
+#if defined(USE_DX9)
+        CHK_DX(HW.pDevice->SetTexture(_last_ps, NULL));
+#elif defined(USE_DX11)
         // TODO: DX11: Optimise: set all resources at once
         ID3DShaderResourceView* pRes = 0;
         // HW.pDevice->PSSetShaderResources(_last_ps, 1, &pRes);
@@ -364,7 +407,9 @@ void CBackend::set_Textures(STextureList* textures_list)
             continue;
 
         textures_vs[_last_vs] = nullptr;
-#if defined(USE_DX11)
+#if defined(USE_DX9)
+        CHK_DX(HW.pDevice->SetTexture(_last_vs + CTexture::rstVertex, NULL));
+#elif defined(USE_DX11)
         // TODO: DX11: Optimise: set all resources at once
         ID3DShaderResourceView* pRes = 0;
         // HW.pDevice->VSSetShaderResources(_last_vs, 1, &pRes);
@@ -433,14 +478,63 @@ void CBackend::set_Textures(STextureList* textures_list)
 #else
 
 void CBackend::set_ClipPlanes(u32 _enable, Fmatrix* _xform /*=NULL */, u32 fmask /* =0xff */) {}
-void CBackend::set_Textures(STextureList* textures_list) {}
+void CBackend::set_Textures(STextureList* _T) {}
 
 #endif // DEDICATED SERVER
 
 void CBackend::SetupStates()
 {
     set_CullMode(CULL_CCW);
-#if defined(USE_DX11)
+#if defined(USE_DX9)
+    for (u32 i = 0; i < HW.Caps.raster.dwStages; i++)
+    {
+        CHK_DX(HW.pDevice->SetSamplerState(i, D3DSAMP_MAXANISOTROPY, ps_r__tf_Anisotropic));
+        CHK_DX(HW.pDevice->SetSamplerState(i, D3DSAMP_MIPMAPLODBIAS, *(u32*)&ps_r__tf_Mipbias));
+        CHK_DX(HW.pDevice->SetSamplerState(i, D3DSAMP_MINFILTER, D3DTEXF_LINEAR));
+        CHK_DX(HW.pDevice->SetSamplerState(i, D3DSAMP_MAGFILTER, D3DTEXF_LINEAR));
+        CHK_DX(HW.pDevice->SetSamplerState(i, D3DSAMP_MIPFILTER, D3DTEXF_LINEAR));
+    }
+    CHK_DX(HW.pDevice->SetRenderState(D3DRS_DITHERENABLE, TRUE));
+    CHK_DX(HW.pDevice->SetRenderState(D3DRS_COLORVERTEX, TRUE));
+    CHK_DX(HW.pDevice->SetRenderState(D3DRS_ZENABLE, TRUE));
+    CHK_DX(HW.pDevice->SetRenderState(D3DRS_SHADEMODE, D3DSHADE_GOURAUD));
+    CHK_DX(HW.pDevice->SetRenderState(D3DRS_ALPHAFUNC, D3DCMP_GREATER));
+    CHK_DX(HW.pDevice->SetRenderState(D3DRS_LOCALVIEWER, TRUE));
+    CHK_DX(HW.pDevice->SetRenderState(D3DRS_DIFFUSEMATERIALSOURCE, D3DMCS_MATERIAL));
+    CHK_DX(HW.pDevice->SetRenderState(D3DRS_SPECULARMATERIALSOURCE, D3DMCS_MATERIAL));
+    CHK_DX(HW.pDevice->SetRenderState(D3DRS_AMBIENTMATERIALSOURCE, D3DMCS_MATERIAL));
+    CHK_DX(HW.pDevice->SetRenderState(D3DRS_EMISSIVEMATERIALSOURCE, D3DMCS_COLOR1));
+    CHK_DX(HW.pDevice->SetRenderState(D3DRS_MULTISAMPLEANTIALIAS, FALSE));
+    CHK_DX(HW.pDevice->SetRenderState(D3DRS_NORMALIZENORMALS, TRUE));
+
+    Fmaterial mat
+    {
+        /*.diffuse  =*/ { 1, 1, 1, 1 },
+        /*.ambient  =*/ { 1, 1, 1, 1 },
+        /*.emissive =*/ { 0, 0, 0, 0 },
+        /*.specular =*/ { 1, 1, 1, 1 },
+        /*.power    =*/ 15.f
+    };
+    CHK_DX(HW.pDevice->SetMaterial(reinterpret_cast<D3DMATERIAL9*>(&mat)));
+
+    if (psDeviceFlags.test(rsWireframe))
+        CHK_DX(HW.pDevice->SetRenderState(D3DRS_FILLMODE, D3DFILL_WIREFRAME));
+    else
+        CHK_DX(HW.pDevice->SetRenderState(D3DRS_FILLMODE, D3DFILL_SOLID));
+    // ******************** Fog parameters
+    CHK_DX(HW.pDevice->SetRenderState(D3DRS_FOGCOLOR, 0));
+    CHK_DX(HW.pDevice->SetRenderState(D3DRS_RANGEFOGENABLE, FALSE));
+    if (HW.Caps.bTableFog)
+    {
+        CHK_DX(HW.pDevice->SetRenderState(D3DRS_FOGTABLEMODE, D3DFOG_LINEAR));
+        CHK_DX(HW.pDevice->SetRenderState(D3DRS_FOGVERTEXMODE, D3DFOG_NONE));
+    }
+    else
+    {
+        CHK_DX(HW.pDevice->SetRenderState(D3DRS_FOGTABLEMODE, D3DFOG_NONE));
+        CHK_DX(HW.pDevice->SetRenderState(D3DRS_FOGVERTEXMODE, D3DFOG_LINEAR));
+    }
+#elif defined(USE_DX11)
     SSManager.SetMaxAnisotropy(ps_r__tf_Anisotropic);
     SSManager.SetMipLODBias(ps_r__tf_Mipbias);
 #elif defined(USE_OGL)
@@ -454,8 +548,6 @@ void CBackend::SetupStates()
 // Device dependance
 void CBackend::OnDeviceCreate()
 {
-    ZoneScoped;
-
 #if defined(USE_DX11)
     HW.get_context(context_id)->QueryInterface(__uuidof(ID3DUserDefinedAnnotation), reinterpret_cast<void**>(&pAnnotation));
 #endif
@@ -492,7 +584,9 @@ void CBackend::apply_lmaterial()
         return;
 
     VERIFY(RC_dest_sampler == C->destination);
-#if defined(USE_DX11)
+#if defined(USE_DX9)
+    VERIFY(RC_sampler == C->type);
+#elif defined(USE_DX11)
     VERIFY(RC_dx11texture == C->type);
 #elif defined(USE_OGL)
     VERIFY(RC_sampler == C->type);

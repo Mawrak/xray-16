@@ -49,13 +49,15 @@
   <!-- Common debug settings -->
   <PropertyGroup Condition="$(Configuration.Contains('Debug'))" Label="Configuration">
     <UseDebugLibraries>true</UseDebugLibraries>
-    <LinkIncremental>false</LinkIncremental>
+    <LinkIncremental>true</LinkIncremental>
+	<EnableASAN>true</EnableASAN>
   </PropertyGroup>
 
   <ItemDefinitionGroup Condition="$(Configuration.Contains('Debug'))">
     <ClCompile>
       <PreprocessorDefinitions>DEBUG;_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <MultiProcessorCompilation>true</MultiProcessorCompilation>
+      <!-- MultiProcessorCompilation isn't compatible with LinkIncremental and UseDebugLibraries -->
+      <MultiProcessorCompilation>false</MultiProcessorCompilation>
       <BufferSecurityCheck>false</BufferSecurityCheck>
       <FunctionLevelLinking>true</FunctionLevelLinking>
     </ClCompile>
@@ -94,13 +96,7 @@
   <!-- Mixed settings -->
   <ItemDefinitionGroup Condition="'$(Configuration)'=='Mixed'">
     <ClCompile>
-      <PreprocessorDefinitions>
-        DEBUG;
-        MIXED;
-        TRACY_ENABLE;
-        TRACY_NO_FRAME_IMAGE;
-        %(PreprocessorDefinitions)
-      </PreprocessorDefinitions>
+      <PreprocessorDefinitions>DEBUG;MIXED;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <!-- Optimization is automatically enabled when UseDebugLibraries == false. That's why we'll turn it off manually -->
       <Optimization>Disabled</Optimization>
     </ClCompile>
@@ -108,11 +104,6 @@
       <GenerateDebugInformation>DebugFastLink</GenerateDebugInformation>
     </Link>
   </ItemDefinitionGroup>
-
-  <!-- Mixed non-CI settings -->
-  <PropertyGroup Condition="'$(Configuration)' == 'Mixed' and '$(CI)' == ''" Label="Configuration">
-    <LinkIncremental>true</LinkIncremental>
-  </PropertyGroup>
 
   <!-- Master Gold settings -->
   <ItemDefinitionGroup Condition="$(Configuration.Contains('Master Gold'))">

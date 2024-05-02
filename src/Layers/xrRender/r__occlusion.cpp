@@ -3,30 +3,35 @@
 
 #include "QueryHelper.h"
 
-R_occlusion::R_occlusion(void) { enabled = strstr(Core.Params, "-no_occq") ? false : true; }
+R_occlusion::R_occlusion(void) { enabled = strstr(Core.Params, "-no_occq") ? FALSE : TRUE; }
 R_occlusion::~R_occlusion(void) { occq_destroy(); }
 void R_occlusion::occq_create(u32 limit)
 {
-    ZoneScoped;
     pool.reserve(limit);
     used.reserve(limit);
     fids.reserve(limit);
     for (u32 it = 0; it < limit; it++)
     {
-        Query q;
+        _Q q;
         q.order = it;
         if (FAILED(CreateQuery(&q.Q, D3D_QUERY_OCCLUSION)))
             break;
-        pool.emplace_back(std::move(q));
+        pool.push_back(q);
     }
     std::reverse(pool.begin(), pool.end());
 }
 void R_occlusion::occq_destroy()
 {
-    for (const auto& q : used)
-        ReleaseQuery(q.Q);
-    for (const auto& q : pool)
-        ReleaseQuery(q.Q);
+    while (!used.empty())
+    {
+        ReleaseQuery(used.back().Q);
+        used.pop_back();
+    }
+    while (!pool.empty())
+    {
+        ReleaseQuery(pool.back().Q);
+        pool.pop_back();
+    }
     used.clear();
     pool.clear();
     fids.clear();
@@ -34,29 +39,18 @@ void R_occlusion::occq_destroy()
 
 u32 R_occlusion::occq_begin(u32& ID)
 {
+    ScopeLock lock{ &render_lock };
+
     if (!enabled)
         return 0;
 
-    ScopeLock lock{ &render_lock };
-
+    //	Igor: prevent release crash if we issue too many queries
     if (pool.empty())
     {
-        const auto sz = used.size();
-        Query q;
-        q.order = static_cast<u32>(sz);
-        if (FAILED(CreateQuery(&q.Q, D3D_QUERY_OCCLUSION)))
-        {
-            if ((Device.dwFrame % 40) == 0)
-                Msg(" RENDER [Warning]: Too many occlusion queries were issued (>%zu)!!!", sz);
-            ID = iInvalidHandle;
-            return 0;
-        }
-        if (sz == used.capacity())
-        {
-            used.reserve(sz + occq_size_base);
-            pool.reserve(sz + occq_size_base);
-        }
-        pool.emplace(pool.begin(), std::move(q));
+        if ((Device.dwFrame % 40) == 0)
+            Msg(" RENDER [Warning]: Too many occlusion queries were issued(>%u)!!!", pool.size());
+        ID = iInvalidHandle;
+        return 0;
     }
 
     RImplementation.BasicStats.OcclusionQueries++;
@@ -64,39 +58,58 @@ u32 R_occlusion::occq_begin(u32& ID)
     {
         ID = fids.back();
         fids.pop_back();
-        used[ID] = std::move(pool.back());
+        VERIFY(pool.size());
+        used[ID] = pool.back();
     }
     else
     {
-        ID = static_cast<u32>(used.size());
-        used.emplace_back(std::move(pool.back()));
+        ID = used.size();
+        VERIFY(pool.size());
+        used.push_back(pool.back());
     }
     pool.pop_back();
+    // CHK_DX					(used[ID].Q->Issue	(D3DISSUE_BEGIN));
     CHK_DX(BeginQuery(used[ID].Q));
+
+    // Msg				("begin: [%2d] - %d", used[ID].order, ID);
 
     return used[ID].order;
 }
 void R_occlusion::occq_end(u32& ID)
 {
-    if (!enabled || ID == iInvalidHandle)
-        return;
-
     ScopeLock lock{ &render_lock };
 
+    if (!enabled)
+        return;
+
+    //	Igor: prevent release crash if we issue too many queries
+    if (ID == iInvalidHandle)
+        return;
+
+    // Msg				("end  : [%2d] - %d", used[ID].order, ID);
+    // CHK_DX			(used[ID].Q->Issue	(D3DISSUE_END));
     CHK_DX(EndQuery(used[ID].Q));
 }
 R_occlusion::occq_result R_occlusion::occq_get(u32& ID)
 {
-    if (!enabled || ID == iInvalidHandle)
+    ScopeLock lock{ &render_lock };
+
+    if (!enabled)
         return 0xffffffff;
 
-    ScopeLock lock{ &render_lock };
+    //	Igor: prevent release crash if we issue too many queries
+    if (ID == iInvalidHandle)
+        return 0xFFFFFFFF;
 
     occq_result fragments = 0;
     HRESULT hr;
+    // CHK_DX		(used[ID].Q->GetData(&fragments,sizeof(fragments),D3DGETDATA_FLUSH));
+    // Msg			("get  : [%2d] - %d => %d", used[ID].order, ID, fragments);
     CTimer T;
     T.Start();
     RImplementation.BasicStats.Wait.Begin();
+    // while	((hr=used[ID].Q->GetData(&fragments,sizeof(fragments),D3DGETDATA_FLUSH))==S_FALSE) {
+    VERIFY2(ID < used.size(), make_string("_Pos = %d, size() = %d ", ID, used.size()));
     while ((hr = GetData(used[ID].Q, &fragments, sizeof(fragments))) == S_FALSE)
     {
         if (!SwitchToThread())
@@ -109,25 +122,29 @@ R_occlusion::occq_result R_occlusion::occq_get(u32& ID)
         }
     }
     RImplementation.BasicStats.Wait.End();
+#if defined(USE_DX9) || defined(USE_DX11)
+    if (hr == D3DERR_DEVICELOST)
+        fragments = 0xffffffff;
+#endif
 
     if (0 == fragments)
         RImplementation.BasicStats.OcclusionCulled++;
 
     // insert into pool (sorting in decreasing order)
-    Query& Q = used[ID];
+    _Q& Q = used[ID];
     if (pool.empty())
-        pool.emplace_back(Q);
+        pool.push_back(Q);
     else
     {
         int it = int(pool.size()) - 1;
         while ((it >= 0) && (pool[it].order < Q.order))
             it--;
-        pool.emplace(pool.begin() + it + 1, std::move(Q));
+        pool.insert(pool.begin() + it + 1, Q);
     }
 
     // remove from used and shrink as nesessary
     used[ID].Q = 0;
-    fids.emplace_back(ID);
+    fids.push_back(ID);
     ID = 0;
     return fragments;
 }

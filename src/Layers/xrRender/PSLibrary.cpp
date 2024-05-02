@@ -13,7 +13,6 @@ bool pgd_sort_pred(const PS::CPGDef* a, const PS::CPGDef* b) { return xr_strcmp(
 //----------------------------------------------------
 void CPSLibrary::OnCreate()
 {
-    ZoneScoped;
 #ifdef _EDITOR
     if (pCreateEAction)
     {
@@ -202,21 +201,17 @@ bool CPSLibrary::Load(const char* nm)
         return false;
     }
 
-    ZoneScoped;
-
     IReader* F = FS.r_open(nm);
     bool bRes = true;
     R_ASSERT(F->find_chunk(PS_CHUNK_VERSION));
     u16 ver = F->r_u16();
     if (ver != PS_VERSION)
         return false;
-
     // second generation
     IReader* OBJ;
     OBJ = F->open_chunk(PS_CHUNK_SECONDGEN);
     if (OBJ)
     {
-        ZoneScopedN("Second generation");
         IReader* O = OBJ->open_chunk(0);
         for (int count = 1; O; count++)
         {
@@ -235,11 +230,10 @@ bool CPSLibrary::Load(const char* nm)
         }
         OBJ->close();
     }
-    // third generation
+    // second generation
     OBJ = F->open_chunk(PS_CHUNK_THIRDGEN);
     if (OBJ)
     {
-        ZoneScopedN("Third generation");
         IReader* O = OBJ->open_chunk(0);
         for (int count = 1; O; count++)
         {

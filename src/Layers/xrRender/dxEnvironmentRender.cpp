@@ -68,7 +68,11 @@ public:
     void Compile(CBlender_Compile& C) override
     {
         C.r_Pass("sky2", "sky2", FALSE, TRUE, FALSE);
-#if defined(USE_DX11)
+#if defined(USE_DX9)
+        C.r_Sampler_clf("s_sky0", "$null");
+        C.r_Sampler_clf("s_sky1", "$null");
+        C.r_Sampler_rtf("s_tonemap", "$user$tonemap"); //. hack
+#elif defined(USE_DX11)
         // C.r_Sampler_clf		("s_sky0",		"$null"			);
         // C.r_Sampler_clf		("s_sky1",		"$null"			);
         C.r_dx11Texture("s_sky0", "$null");
@@ -200,7 +204,7 @@ void dxEnvironmentRender::lerp(CEnvDescriptorMixer& currentEnv, IEnvDescriptorRe
 
 void dxEnvironmentRender::RenderSky(CEnvironment& env)
 {
-    RImplementation.rmFar(RCache);
+    GEnv.Render->rmFar(RCache);
 
     // draw sky box
     Fmatrix mSky;
@@ -226,7 +230,7 @@ void dxEnvironmentRender::RenderSky(CEnvironment& env)
     RCache.set_xform_world(mSky);
     RCache.set_Geometry(sh_2geom);
     RCache.set_Shader(sh_2sky);
-#if defined(USE_DX11)
+#if defined(USE_DX9) || defined(USE_DX11)
     RCache.set_Textures(&sky_r_textures);
 #elif defined(USE_OGL)
     if (HW.Caps.geometry.bVTF)
@@ -245,7 +249,7 @@ void dxEnvironmentRender::RenderSky(CEnvironment& env)
 #endif // USE_OGL
 
     // Sun
-    RImplementation.rmNormal(RCache);
+    GEnv.Render->rmNormal(RCache);
 #if RENDER != R_R1
     //
     // This hack is done to make sure that the state is set for sure:
@@ -274,7 +278,7 @@ void dxEnvironmentRender::RenderClouds(CEnvironment& env)
     if (!clouds_sh)
         return;
 
-    RImplementation.rmFar(RCache);
+    GEnv.Render->rmFar(RCache);
 
     Fmatrix mXFORM, mScale;
     mScale.scale(10, 0.4f, 10);
@@ -355,7 +359,7 @@ void dxEnvironmentRender::OnDeviceCreate()
             tclouds1_tstage = C->samp.index;
     }
 
-    const bool r2 = RImplementation.GenerationIsR2OrHigher();
+    const bool r2 = GEnv.Render->GenerationIsR2OrHigher();
     tonemap_tstage_2sky = sh_2sky->E[0]->passes[0]->T->find_texture_stage(r2_RT_luminance_cur, r2);
     tonemap_tstage_clouds = clouds_sh->E[0]->passes[0]->T->find_texture_stage(r2_RT_luminance_cur, r2);
 }
@@ -365,7 +369,7 @@ void dxEnvironmentRender::OnDeviceDestroy()
     sky_r_textures.clear();
     clouds_r_textures.clear();
 
-#if defined(USE_DX11)
+#if defined(USE_DX9) || defined(USE_DX11)
     tsky0->surface_set(nullptr);
     tsky1->surface_set(nullptr);
     t_envmap_0->surface_set(nullptr);

@@ -24,7 +24,7 @@ BOOL CBlender_default_aref::canBeDetailed()
     return TRUE;
 }
 
-BOOL CBlender_default_aref::canBeLMAPped()
+BOOL CBlender_default_aref::canBeLMAPped() 
 {
     return TRUE;
 }
@@ -120,7 +120,6 @@ void CBlender_default_aref::CompileFFP(CBlender_Compile& C) const
                 C.StageEnd();
             }
             C.PassEnd();
-            break;
         }
         case SE_R1_LMODELS:
         {
@@ -142,6 +141,9 @@ void CBlender_default_aref::CompileFFP(CBlender_Compile& C) const
             C.PassEnd();
             break;
         }
+
+        default:
+            break;
         } // switch (C.iElement)
     }
 }

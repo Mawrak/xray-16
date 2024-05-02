@@ -1,30 +1,35 @@
-add_library(xrAPI SHARED)
+project(xrAPI)
 
-target_sources(xrAPI PRIVATE
-    stdafx.h
-    stdafx.cpp
-    xrAPI.cpp
+set(KERNEL_SRC
+    "stdafx.h"
+    "stdafx.cpp"
+    "xrAPI.cpp"
 )
 
-target_include_directories(xrAPI
+source_group("Kernel" FILES ${KERNEL_SRC})
+
+add_library(${PROJECT_NAME} SHARED ${KERNEL_SRC})
+
+target_include_directories(${PROJECT_NAME}
     PRIVATE
-    "${CMAKE_SOURCE_DIR}/src"
+    ${CMAKE_SOURCE_DIR}/src
 )
 
-target_compile_definitions(xrAPI
+target_compile_definitions(${PROJECT_NAME}
     PRIVATE
-    XRAPI_EXPORTS
+    -DXRAPI_EXPORTS
 )
 
-set_target_properties(xrAPI PROPERTIES
+set_target_properties(${PROJECT_NAME} PROPERTIES
     PREFIX ""
 )
 
-target_precompile_headers(xrAPI
+target_precompile_headers(${PROJECT_NAME}
     PRIVATE
-    stdafx.h
+    "stdafx.h"
 )
 
-install(TARGETS xrAPI LIBRARY
-    DESTINATION "${CMAKE_INSTALL_LIBDIR}"
+install(TARGETS ${PROJECT_NAME} LIBRARY
+    DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    PERMISSIONS OWNER_READ OWNER_WRITE GROUP_READ WORLD_READ
 )

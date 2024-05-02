@@ -7,7 +7,12 @@
   </PropertyGroup>
 
   <PropertyGroup Label="Globals">
-    <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
+    <!-- At the moment of parsing this file, we don't have many macros defined yet, so we need to check things manually -->
+    <!-- Way to detect SDK in registry was found in Microsoft.Cpp.WindowsSDK.props -->
+    <WindowsTargetPlatformVersion Condition="'$(WindowsTargetPlatformVersion)' == ''">$(Registry:HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Microsoft SDKs\Windows\v10.0@ProductVersion)</WindowsTargetPlatformVersion>
+    <WindowsTargetPlatformVersion Condition="'$(WindowsTargetPlatformVersion)' == ''">$(Registry:HKEY_LOCAL_MACHINE\SOFTWARE\Wow6432Node\Microsoft\Microsoft SDKs\Windows\v10.0@ProductVersion)</WindowsTargetPlatformVersion>
+    <WindowsTargetPlatformVersion Condition="'$(WindowsTargetPlatformVersion)' != ''">$(WindowsTargetPlatformVersion).0</WindowsTargetPlatformVersion> <!-- ... a hack... -->
+    <WindowsTargetPlatformVersion Condition="'$(WindowsTargetPlatformVersion)' == ''">8.1</WindowsTargetPlatformVersion>
   </PropertyGroup>
 
   <Choose>
@@ -21,9 +26,14 @@
         <PlatformToolset>v142</PlatformToolset>
       </PropertyGroup>
     </When>
+    <When Condition="'$(DefaultPlatformToolset)' == 'v141' and '$(v141_Installed)' == 'true'">
+      <PropertyGroup Label="Configuration">
+        <PlatformToolset>v141</PlatformToolset>
+      </PropertyGroup>
+    </When>
     <Otherwise>
       <PropertyGroup Label="Configuration">
-        <PlatformToolset>v143</PlatformToolset>
+        <PlatformToolset>v142</PlatformToolset>
       </PropertyGroup>
     </Otherwise>
   </Choose>

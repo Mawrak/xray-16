@@ -16,16 +16,16 @@ public:
         modeWaveForm
     };
 
-public:
+public:    
     Fcolor const_float{ 0.0f, 0.0f, 0.0f, 0.0f };
     u32 const_dword{ 0 };
 
     u32 dwFrame{ 0 };
     u32 dwMode{ 0 };
-    WaveForm R;
-    WaveForm G;
-    WaveForm B;
-    WaveForm A;
+    WaveForm _R;
+    WaveForm _G;
+    WaveForm _B;
+    WaveForm _A;
 
     void set_float(float r, float g, float b, float a)
     {
@@ -50,13 +50,13 @@ public:
     {
         if (dwMode != C.dwMode)
             return FALSE;
-        if (!R.Similar(C.R))
+        if (!_R.Similar(C._R))
             return FALSE;
-        if (!G.Similar(C.G))
+        if (!_G.Similar(C._G))
             return FALSE;
-        if (!B.Similar(C.B))
+        if (!_B.Similar(C._B))
             return FALSE;
-        if (!A.Similar(C.A))
+        if (!_A.Similar(C._A))
             return FALSE;
         return TRUE;
     }

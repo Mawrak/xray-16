@@ -61,7 +61,7 @@ inline std::pair<char, GLuint> GLCompileShader(pcstr* buffer, size_t size, pcstr
 
     const GLuint program = glCreateProgram();
     R_ASSERT(program);
-    if (GLEW_VERSION_4_3)
+    if (GLEW_VERSION_4_3) 
         CHK_GL(glObjectLabel(GL_PROGRAM, program, -1, name));
     CHK_GL(glProgramParameteri(program, GL_PROGRAM_SEPARABLE, (GLint)GL_TRUE));
     if (HW.ShaderBinarySupported)
@@ -175,13 +175,15 @@ struct ShaderTypeTraits<SVS>
     using HWShaderType = GLuint;
     using BufferType = pcstr*;
     using ResultType = std::pair<char, GLuint>;
+#else
+#if defined(USE_DX9)
+    using LinkageType = void*;
 #elif defined(USE_DX11)
     using LinkageType = ID3D11ClassLinkage*;
+#endif
     using HWShaderType = ID3DVertexShader*;
     using BufferType = DWORD const*;
     using ResultType = HRESULT;
-#else
-#   error No graphics API selected or enabled!
 #endif
 
     static inline const char* GetShaderExt() { return ".vs"; }
@@ -218,7 +220,10 @@ struct ShaderTypeTraits<SVS>
     {
         ResultType res{};
 
-#if defined(USE_DX11)
+#if defined(USE_DX9)
+        res = HW.pDevice->CreateVertexShader(buffer, &sh);
+        UNUSED(linkage, name);
+#elif defined(USE_DX11)
         res = HW.pDevice->CreateVertexShader(buffer, size, linkage, &sh);
         UNUSED(name);
 #elif defined(USE_OGL)
@@ -246,13 +251,15 @@ struct ShaderTypeTraits<SPS>
     using HWShaderType = GLuint;
     using BufferType = pcstr*;
     using ResultType = std::pair<char, GLuint>;
+#else
+#if defined(USE_DX9)
+    using LinkageType = void*;
 #elif defined(USE_DX11)
     using LinkageType = ID3D11ClassLinkage*;
+#endif
     using HWShaderType = ID3DPixelShader*;
     using BufferType = DWORD const*;
     using ResultType = HRESULT;
-#else
-#   error No graphics API selected or enabled!
 #endif
 
     static inline const char* GetShaderExt() { return ".ps"; }
@@ -303,7 +310,10 @@ struct ShaderTypeTraits<SPS>
     {
         ResultType res{};
 
-#if defined(USE_DX11)
+#if defined(USE_DX9)
+        res = HW.pDevice->CreatePixelShader(buffer, &sh);
+        UNUSED(linkage, name);
+#elif defined(USE_DX11)
         res = HW.pDevice->CreatePixelShader(buffer, size, linkage, &sh);
         UNUSED(name);
 #elif defined(USE_OGL)
@@ -321,6 +331,7 @@ struct ShaderTypeTraits<SPS>
     static inline u32 GetShaderDest() { return RC_dest_pixel; }
 };
 
+#if defined(USE_DX11) || defined(USE_OGL)
 template <>
 struct ShaderTypeTraits<SGS>
 {
@@ -574,6 +585,7 @@ struct ShaderTypeTraits<SCS>
 
     static inline u32 GetShaderDest() { return RC_dest_compute; }
 };
+#endif
 
 template <>
 inline CResourceManager::map_PS& CResourceManager::GetShaderMap()
@@ -587,6 +599,7 @@ inline CResourceManager::map_VS& CResourceManager::GetShaderMap()
     return m_vs;
 }
 
+#if defined(USE_DX11) || defined(USE_OGL)
 template <>
 inline CResourceManager::map_GS& CResourceManager::GetShaderMap()
 {
@@ -610,6 +623,7 @@ inline CResourceManager::map_CS& CResourceManager::GetShaderMap()
 {
     return m_cs;
 }
+#endif // USE_DX11 || USE_OGL
 
 template <typename T>
 T* CResourceManager::CreateShader(cpcstr name, pcstr filename /*= nullptr*/, u32 flags /*= 0*/)
@@ -625,7 +639,7 @@ T* CResourceManager::CreateShader(cpcstr name, pcstr filename /*= nullptr*/, u32
         T* sh = xr_new<T>();
 
         sh->dwFlags |= xr_resource_flagged::RF_REGISTERED;
-        sh_map.emplace(sh->set_name(name), sh);
+        sh_map.insert(std::make_pair(sh->set_name(name), sh));
         if (0 == xr_stricmp(name, "null"))
         {
             sh->sh = 0;
@@ -646,7 +660,7 @@ T* CResourceManager::CreateShader(cpcstr name, pcstr filename /*= nullptr*/, u32
 
         // Open file
         string_path cname;
-        strconcat(cname, RImplementation.getShaderPath(), shName,
+        strconcat(sizeof(cname), cname, GEnv.Render->getShaderPath(), shName,
             ShaderTypeTraits<T>::GetShaderExt());
         FS.update_path(cname, "$game_shaders$", cname);
 
@@ -661,10 +675,10 @@ T* CResourceManager::CreateShader(cpcstr name, pcstr filename /*= nullptr*/, u32
             fallback = false;
 
             string_path tmp;
-            strconcat(tmp, "stub_default", ShaderTypeTraits<T>::GetShaderExt());
+            strconcat(sizeof(tmp), tmp, "stub_default", ShaderTypeTraits<T>::GetShaderExt());
 
             Msg("CreateShader: %s is missing. Replacing it with %s", cname, tmp);
-            strconcat(cname, RImplementation.getShaderPath(), tmp);
+            strconcat(sizeof(cname), cname, GEnv.Render->getShaderPath(), tmp);
             FS.update_path(cname, "$game_shaders$", cname);
             file = FS.r_open(cname);
         }
@@ -680,13 +694,13 @@ T* CResourceManager::CreateShader(cpcstr name, pcstr filename /*= nullptr*/, u32
         pcstr c_target, c_entry;
         ShaderTypeTraits<T>::GetCompilationTarget(c_target, c_entry, data);
 
-#if defined(USE_D3DX)
+#if defined(USE_DX9)
 #   ifdef NDEBUG
         flags |= D3DXSHADER_PACKMATRIX_ROWMAJOR;
 #   else
         flags |= D3DXSHADER_PACKMATRIX_ROWMAJOR | (xrDebug::DebuggerIsPresent() ? D3DXSHADER_DEBUG : 0);
 #   endif
-#elif !defined(USE_OGL)
+#elif defined(USE_DX11)
 #   ifdef NDEBUG
         flags |= D3DCOMPILE_PACK_MATRIX_ROW_MAJOR | D3DCOMPILE_OPTIMIZATION_LEVEL3;
 #   else
@@ -695,7 +709,7 @@ T* CResourceManager::CreateShader(cpcstr name, pcstr filename /*= nullptr*/, u32
 #endif
 
         // Compile
-        HRESULT const _hr = RImplementation.shader_compile(name, file, c_entry, c_target, flags, (void*&)sh);
+        HRESULT const _hr = GEnv.Render->shader_compile(name, file, c_entry, c_target, flags, (void*&)sh);
 
         FS.r_close(file);
 

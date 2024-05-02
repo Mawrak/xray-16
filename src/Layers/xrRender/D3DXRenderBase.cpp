@@ -6,35 +6,49 @@
 #include "xrEngine/GameFont.h"
 #include "xrEngine/PerformanceAlert.hpp"
 
-#if defined(XR_PLATFORM_WINDOWS) || defined(XR_PLATFORM_LINUX) || defined(XR_PLATFORM_APPLE)
-#   ifndef MASTER_GOLD
-#       define USE_RENDERDOC
-#   endif
-#endif
-
-#ifdef USE_RENDERDOC
+#if DEBUG
 #include <renderdoc/renderdoc_app.h>
 RENDERDOC_API_1_0_0* g_renderdoc_api;
 #endif
 
 void D3DXRenderBase::setGamma(float fGamma)
 {
+#if defined(USE_DX9) || defined(USE_DX11)
     m_Gamma.Gamma(fGamma);
+#elif defined(USE_OGL)
+    UNUSED(fGamma);
+#else
+#    error No graphics API selected or in use!
+#endif
 }
 
 void D3DXRenderBase::setBrightness(float fGamma)
 {
+#if defined(USE_DX9) || defined(USE_DX11)
     m_Gamma.Brightness(fGamma);
+#elif defined(USE_OGL)
+    UNUSED(fGamma);
+#else
+#    error No graphics API selected or in use!
+#endif
 }
 
 void D3DXRenderBase::setContrast(float fGamma)
 {
+#if defined(USE_DX9) || defined(USE_DX11)
     m_Gamma.Contrast(fGamma);
+#elif defined(USE_OGL)
+    UNUSED(fGamma);
+#else
+#    error No graphics API selected or in use!
+#endif
 }
 
 void D3DXRenderBase::updateGamma()
 {
+#if defined(USE_DX9) || defined(USE_DX11)
     m_Gamma.Update();
+#endif
 }
 
 void D3DXRenderBase::OnDeviceDestroy(bool bKeepTextures)
@@ -76,30 +90,33 @@ void D3DXRenderBase::Destroy()
 
 void D3DXRenderBase::Reset(SDL_Window* hWnd, u32& dwWidth, u32& dwHeight, float& fWidth_2, float& fHeight_2)
 {
-    ZoneScoped;
-#if defined(DEBUG) && defined(USE_DX11)
+#if defined(DEBUG) && (defined(USE_DX9) || defined(USE_DX11))
     _SHOW_REF("*ref -CRenderDevice::ResetTotal: DeviceREF:", HW.pDevice);
 #endif // DEBUG
 
     reset_begin();
     Memory.mem_compact();
 
-    HW.Reset();
-
-    std::tie(dwWidth, dwHeight) = HW.GetSurfaceSize();
-    fWidth_2 = float(dwWidth / 2);
-    fHeight_2 = float(dwHeight / 2);
-
-    Resources->reset_end();
-
-    // create everything, renderer may use
-    reset_end();
-
-#ifndef MASTER_GOLD
-    Resources->Dump(true);
+#ifdef USE_DX9
+    const bool noTexturesInRAM = RImplementation.o.no_ram_textures;
+    if (noTexturesInRAM)
+        ResourcesDeferredUnload();
 #endif
 
-#if defined(DEBUG) && defined(USE_DX11)
+    HW.Reset();
+
+#ifdef USE_DX9
+    if (noTexturesInRAM)
+        ResourcesDeferredUpload();
+#endif
+
+    std::tie(dwWidth, dwHeight) = HW.GetSurfaceSize();
+
+    fWidth_2 = float(dwWidth / 2);
+    fHeight_2 = float(dwHeight / 2);
+    Resources->reset_end();
+
+#if defined(DEBUG) && (defined(USE_DX9) || defined(USE_DX11))
     _SHOW_REF("*ref +CRenderDevice::ResetTotal: DeviceREF:", HW.pDevice);
 #endif
 }
@@ -124,8 +141,6 @@ void D3DXRenderBase::SetupStates()
 
 void D3DXRenderBase::OnDeviceCreate(const char* shName)
 {
-    ZoneScoped;
-
     // Signal everyone - device created
 
     // streams
@@ -143,7 +158,9 @@ void D3DXRenderBase::OnDeviceCreate(const char* shName)
 #else
     RCache.OnDeviceCreate();
 #endif
+#if defined(USE_DX9) || defined(USE_DX11)
     m_Gamma.Update();
+#endif
     Resources->OnDeviceCreate(shName);
     Resources->CompatibilityCheck();
     create();
@@ -152,7 +169,7 @@ void D3DXRenderBase::OnDeviceCreate(const char* shName)
         m_WireShader.create("editor" DELIMITER "wire");
         m_SelectionShader.create("editor" DELIMITER "selection");
         m_PortalFadeShader.create("portal");
-        m_PortalFadeGeom.create(FVF::F_L, RImplementation.Vertex.Buffer(), 0);
+        m_PortalFadeGeom.create(FVF::F_L, RImplementation.Vertex.Buffer(), 0);        
         DUImpl.OnDeviceCreate();
         UIRenderImpl.CreateUIGeom();
     }
@@ -160,9 +177,7 @@ void D3DXRenderBase::OnDeviceCreate(const char* shName)
 
 void D3DXRenderBase::Create(SDL_Window* hWnd, u32& dwWidth, u32& dwHeight, float& fWidth_2, float& fHeight_2)
 {
-    ZoneScoped;
-
-#if defined(USE_RENDERDOC) && defined(USE_DX11)
+#if defined(DEBUG) && defined(USE_DX11)
     if (!g_renderdoc_api)
     {
         HMODULE hModule = GetModuleHandleA("renderdoc.dll");
@@ -344,7 +359,6 @@ bool D3DXRenderBase::HWSupportsShaderYUV2RGB()
 
 void D3DXRenderBase::OnAssetsChanged()
 {
-    ZoneScoped;
     Resources->m_textures_description.UnLoad();
     Resources->m_textures_description.Load();
 }

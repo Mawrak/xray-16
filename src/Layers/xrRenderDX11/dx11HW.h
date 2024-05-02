@@ -6,6 +6,7 @@
 #include "Layers/xrRender/stats_manager.h"
 
 #include <SDL.h>
+#include <SDL_syswm.h>
 
 class CHW
     : public pureAppActivate,
@@ -35,7 +36,7 @@ public:
         return SelectFormat(feature, formats, count);
     }
     bool UsingFlipPresentationModel() const;
-    DeviceState GetDeviceState();
+    DeviceState GetDeviceState() const;
 
 public:
     void BeginScene();
@@ -47,7 +48,7 @@ public:
     void OnAppDeactivate() override;
 
 private:
-    bool CreateSwapChain(HWND hwnd);
+    void CreateSwapChain(HWND hwnd);
     bool CreateSwapChain2(HWND hwnd);
 
     bool ThisInstanceIsGlobal() const;
@@ -81,7 +82,7 @@ public:
     bool SAD4ShaderInstructions;
     bool ExtendedDoublesShaderInstructions;
 
-    ID3DDeviceContext* d3d_contexts_pool[R__NUM_CONTEXTS]{};
+    ID3DDeviceContext *d3d_contexts_pool[R__NUM_CONTEXTS];
 
     bool DX10Only = false;
 #ifdef HAS_DX11_2
@@ -98,10 +99,8 @@ public:
 #if !defined(_MAYA_EXPORT)
     stats_manager stats_manager;
 #endif
-    TracyD3D11Ctx profiler_ctx{}; // TODO: this should be one per d3d11 context
 private:
     DXGI_SWAP_CHAIN_DESC m_ChainDesc; // DevPP equivalent
-    bool doPresentTest{};
     XRay::Module hD3DCompiler;
     XRay::Module hDXGI;
     XRay::Module hD3D;

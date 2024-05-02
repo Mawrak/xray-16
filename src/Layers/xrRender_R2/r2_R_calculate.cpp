@@ -27,8 +27,6 @@ void render_main::init()
 
 void render_main::calculate()
 {
-    ZoneScoped;
-
     auto& dsgraph_main = RImplementation.get_imm_context();
 
     dsgraph_main.o.phase = CRender::PHASE_NORMAL;
@@ -63,8 +61,6 @@ void render_main::render()
 
 void CRender::Calculate()
 {
-    ZoneScopedN("r2_calculate");
-
     // Transfer to global space to avoid deep pointer access
     IRender_Target* T = getTarget();
     float fov_factor = _sqr(90.f / Device.fFOV);
@@ -106,7 +102,7 @@ void CRender::Calculate()
 
     // Check if we touch some light even trough portal
     static xr_vector<ISpatial*> spatial_lights;
-    g_pGamePersistent->SpatialSpace.q_sphere(spatial_lights, 0, STYPE_LIGHTSOURCE, Device.vCameraPosition, EPS_L);
+    g_SpatialSpace->q_sphere(spatial_lights, 0, STYPE_LIGHTSOURCE, Device.vCameraPosition, EPS_L);
     for (auto spatial : spatial_lights)
     {
         const auto& entity_pos = spatial->spatial_sector_point();

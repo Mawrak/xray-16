@@ -16,6 +16,7 @@ void resptrcode_texture::create(LPCSTR _name) { _set(RImplementation.Resources->
 //////////////////////////////////////////////////////////////////////
 CTexture::CTexture()
 {
+    pSurface = nullptr;
     pAVI = nullptr;
     pTheora = nullptr;
     desc_cache = nullptr;
@@ -84,7 +85,7 @@ void CTexture::apply_theora(CBackend& cmd_list, u32 dwStage)
     if (pTheora->Update(m_play_time != 0xFFFFFFFF ? m_play_time : Device.dwTimeContinual))
     {
         R_ASSERT(D3DRTYPE_TEXTURE == pSurface->GetType());
-        ID3DTexture2D* T2D = static_cast<ID3DTexture2D*>(pTempSurface);
+        ID3DTexture2D* T2D = (ID3DTexture2D*)pSurface;
         D3DLOCKED_RECT R;
         RECT rect;
         rect.left = 0;
@@ -100,7 +101,6 @@ void CTexture::apply_theora(CBackend& cmd_list, u32 dwStage)
         pTheora->DecompressFrame((u32*)R.pBits, _w - rect.right, _pos);
         VERIFY(u32(_pos) == rect.bottom * _w);
         R_CHK(T2D->UnlockRect(0));
-        R_CHK(HW.pDevice->UpdateTexture(pTempSurface, pSurface));
     }
     CHK_DX(HW.pDevice->SetTexture(dwStage, pSurface));
 };
@@ -109,7 +109,7 @@ void CTexture::apply_avi(CBackend& cmd_list, u32 dwStage) const
     if (pAVI->NeedUpdate())
     {
         R_ASSERT(D3DRTYPE_TEXTURE == pSurface->GetType());
-        ID3DTexture2D* T2D = static_cast<ID3DTexture2D*>(pTempSurface);
+        ID3DTexture2D* T2D = (ID3DTexture2D*)pSurface;
 
         // AVI
         D3DLOCKED_RECT R;
@@ -122,7 +122,6 @@ void CTexture::apply_avi(CBackend& cmd_list, u32 dwStage) const
         //		R_ASSERT(pAVI->GetFrame((u8*)(&R.pBits)));
 
         R_CHK(T2D->UnlockRect(0));
-        R_CHK(HW.pDevice->UpdateTexture(pTempSurface, pSurface));
     }
     CHK_DX(HW.pDevice->SetTexture(dwStage, pSurface));
 };
@@ -198,20 +197,20 @@ void CTexture::Load()
                 pTheora->Play(!bstop_at_end, Device.dwTimeContinual);
 
                 // Now create texture
+                ID3DTexture2D* pTexture = nullptr;
                 u32 _w = pTheora->Width(false);
                 u32 _h = pTheora->Height(false);
 
-                const auto hr = HW.pDevice->CreateTexture(_w, _h, 1, 0,
-                    D3DFMT_A8R8G8B8, D3DPOOL_DEFAULT, reinterpret_cast<ID3DTexture2D**>(&pSurface), nullptr);
-                const auto hr2 = HW.pDevice->CreateTexture(_w, _h, 1, 0,
-                    D3DFMT_A8R8G8B8, D3DPOOL_SYSTEMMEM, reinterpret_cast<ID3DTexture2D**>(&pTempSurface), nullptr);
+                HRESULT hrr =
+                    HW.pDevice->CreateTexture(_w, _h, 1, 0, D3DFMT_A8R8G8B8, D3DPOOL_MANAGED, &pTexture, nullptr);
 
-                if (FAILED(hr) || FAILED(hr2))
+                pSurface = pTexture;
+                if (FAILED(hrr))
                 {
                     FATAL("Invalid video stream");
+                    R_CHK(hrr);
                     xr_delete(pTheora);
-                    _RELEASE(pSurface);
-                    _RELEASE(pTempSurface);
+                    pSurface = nullptr;
                 }
             }
         }
@@ -230,17 +229,16 @@ void CTexture::Load()
                 flags.MemoryUsage = pAVI->m_dwWidth * pAVI->m_dwHeight * 4;
 
                 // Now create texture
-                const auto hr = HW.pDevice->CreateTexture(pAVI->m_dwWidth, pAVI->m_dwHeight, 1, 0,
-                    D3DFMT_A8R8G8B8, D3DPOOL_DEFAULT, reinterpret_cast<ID3DTexture2D**>(&pSurface), nullptr);
-                const auto hr2 = HW.pDevice->CreateTexture(pAVI->m_dwWidth, pAVI->m_dwHeight, 1, 0,
-                    D3DFMT_A8R8G8B8, D3DPOOL_SYSTEMMEM, reinterpret_cast<ID3DTexture2D**>(&pTempSurface), nullptr);
-
-                if (FAILED(hr) || FAILED(hr2))
+                ID3DTexture2D* pTexture = nullptr;
+                HRESULT hrr = HW.pDevice->CreateTexture(
+                    pAVI->m_dwWidth, pAVI->m_dwHeight, 1, 0, D3DFMT_A8R8G8B8, D3DPOOL_MANAGED, &pTexture, nullptr);
+                pSurface = pTexture;
+                if (FAILED(hrr))
                 {
                     FATAL("Invalid video stream");
+                    R_CHK(hrr);
                     xr_delete(pAVI);
-                    _RELEASE(pSurface);
-                    _RELEASE(pTempSurface);
+                    pSurface = nullptr;
                 }
             }
         }
@@ -321,7 +319,6 @@ void CTexture::Unload()
 
 
     _RELEASE(pSurface);
-    _RELEASE(pTempSurface);
 
     xr_delete(pAVI);
     xr_delete(pTheora);

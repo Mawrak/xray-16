@@ -53,10 +53,6 @@ extern float ps_current_detail_height;
 class ECORE_API CDetailManager
 {
 public:
-    float fade_distance = 99999;
-    Fvector light_position;
-    void details_clear();
-
     struct SlotItem
     { // один кустик
         float scale;
@@ -65,8 +61,6 @@ public:
         u32 vis_ID; // индекс в visibility списке он же тип [не качается, качается1, качается2]
         float c_hemi;
         float c_sun;
-        float distance;
-        Fvector position;
 #if RENDER == R_R1
         Fvector c_rgb;
 #endif
@@ -203,7 +197,13 @@ public:
     void hw_Load_Shaders();
     void hw_Unload();
     void hw_Render(CBackend& cmd_list);
+#if defined(USE_DX9)
+    void hw_Render_dump(CBackend& cmd_list, ref_constant array, u32 var_id, u32 lod_id, u32 c_base);
+#elif defined(USE_DX11) || defined(USE_OGL)
     void hw_Render_dump(CBackend& cmd_list, const Fvector4& consts, const Fvector4& wave, const Fvector4& wind, u32 var_id, u32 lod_id);
+#else
+#   error No graphics API selected or enabled!
+#endif
 
     // get unpacked slot
     DetailSlot& QueryDB(int sx, int sz);

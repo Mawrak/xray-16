@@ -1,41 +1,44 @@
 #include "stdafx.h"
 #include "xr_effgamma.h"
 
-IC u16 clr2gamma(float c)
-{
-    int C = iFloor(c);
-    clamp(C, 0, 65535);
-    return u16(C);
-}
+#if defined(USE_DX11)
 
-void CGammaControl::GenLUT(u16* r, u16* g, u16* b, u16 count) const
+void CGammaControl::Update()
 {
-    const float og = 1.f / (fGamma + EPS);
-    const float B = fBrightness / 2.f;
-    const float C = fContrast / 2.f;
-    for (u16 i = 0; i < count; i++)
+    if (HW.pDevice)
     {
-        //	const	float	c	= 65535.f*(powf(float(i)/255, og) + fBrightness);
-        const float c = (C + .5f) * powf(float(i) / 255.f, og) * 65535.f + (B - 0.5f) * 32768.f - C * 32768.f + 16384.f;
-        r[i] = clr2gamma(c * cBalance.r);
-        g[i] = clr2gamma(c * cBalance.g);
-        b[i] = clr2gamma(c * cBalance.b);
+        DXGI_GAMMA_CONTROL_CAPABILITIES GC;
+        DXGI_GAMMA_CONTROL G;
+        IDXGIOutput* pOutput;
+
+        HRESULT hr = HW.m_pSwapChain->GetContainingOutput(&pOutput);
+        // Метод выполнится успешно только в полноэкранном режиме.
+        if (SUCCEEDED(hr))
+        {
+            hr = pOutput->GetGammaControlCapabilities(&GC);
+            if (SUCCEEDED(hr))
+            {
+                GenLUT(GC, G);
+                pOutput->SetGammaControl(&G);
+            }
+        }
+
+        _RELEASE(pOutput);
     }
 }
 
-#if defined(USE_DX11)
-void CGammaControl::GenLUT(const DXGI_GAMMA_CONTROL_CAPABILITIES& GC, DXGI_GAMMA_CONTROL& G) const
+void CGammaControl::GenLUT(const DXGI_GAMMA_CONTROL_CAPABILITIES& GC, DXGI_GAMMA_CONTROL& G)
 {
-    constexpr DXGI_RGB Offset = { 0, 0, 0 };
-    constexpr DXGI_RGB Scale  = { 1, 1, 1 };
+    DXGI_RGB Offset = {0, 0, 0};
+    DXGI_RGB Scale = {1, 1, 1};
     G.Offset = Offset;
     G.Scale = Scale;
 
-    const float DeltaCV = (GC.MaxConvertedValue - GC.MinConvertedValue);
+    float DeltaCV = (GC.MaxConvertedValue - GC.MinConvertedValue);
 
-    const float og = 1.f / (fGamma + EPS);
-    const float B = fBrightness / 2.f;
-    const float C = fContrast / 2.f;
+    float og = 1.f / (fGamma + EPS);
+    float B = fBrightness / 2.f;
+    float C = fContrast / 2.f;
 
     for (u32 i = 0; i < GC.NumGammaControlPoints; i++)
     {
@@ -52,35 +55,38 @@ void CGammaControl::GenLUT(const DXGI_GAMMA_CONTROL_CAPABILITIES& GC, DXGI_GAMMA
         clamp(G.GammaCurve[i].Blue, GC.MinConvertedValue, GC.MaxConvertedValue);
     }
 }
-#endif
 
-void CGammaControl::Update() const
+#elif defined(USE_DX9) || defined(USE_OGL) // !USE_DX9 && !USE_OGL
+
+IC u16 clr2gamma(float c)
 {
-#if defined(USE_DX11)
+    int C = iFloor(c);
+    clamp(C, 0, 65535);
+    return u16(C);
+}
+
+void CGammaControl::Update()
+{
     if (HW.pDevice)
     {
-        DXGI_GAMMA_CONTROL_CAPABILITIES GC;
-        DXGI_GAMMA_CONTROL G;
-        IDXGIOutput* pOutput{};
-
-        HRESULT hr = HW.m_pSwapChain->GetContainingOutput(&pOutput);
-        // Метод выполнится успешно только в полноэкранном режиме.
-        if (SUCCEEDED(hr))
-        {
-            hr = pOutput->GetGammaControlCapabilities(&GC);
-            if (SUCCEEDED(hr))
-            {
-                GenLUT(GC, G);
-                hr = pOutput->SetGammaControl(&G);
-            }
-        }
-
-        _RELEASE(pOutput);
-        if (SUCCEEDED(hr))
-            return;
+        D3DGAMMARAMP G;
+        GenLUT(G);
+        HW.pDevice->SetGammaRamp(0, D3DSGR_NO_CALIBRATION, &G);
     }
-#endif
-    u16 red[256], green[256], blue[256];
-    GenLUT(red, green, blue, 256);
-    SDL_SetWindowGammaRamp(Device.m_sdlWnd, red, green, blue);
 }
+void CGammaControl::GenLUT(D3DGAMMARAMP& G)
+{
+    float og = 1.f / (fGamma + EPS);
+    float B = fBrightness / 2.f;
+    float C = fContrast / 2.f;
+    for (int i = 0; i < 256; i++)
+    {
+        //		float	c		= 65535.f*(powf(float(i)/255, og) + fBrightness);
+        float c = (C + .5f) * powf(i / 255.f, og) * 65535.f + (B - 0.5f) * 32768.f - C * 32768.f + 16384.f;
+        G.red[i] = clr2gamma(c * cBalance.r);
+        G.green[i] = clr2gamma(c * cBalance.g);
+        G.blue[i] = clr2gamma(c * cBalance.b);
+    }
+}
+
+#endif // !USE_DX9 && !USE_OGL

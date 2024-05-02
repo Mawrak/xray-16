@@ -29,8 +29,6 @@ public:
 
     const xr_vector<pcstr>& ObtainSupportedModes() override
     {
-        ZoneScoped;
-
         if (CheckCanAddMode())
         {
             modes.emplace_back(RENDERER_RGL_MODE);
@@ -46,8 +44,6 @@ public:
 
     void SetupEnv(pcstr mode) override
     {
-        ZoneScoped;
-
         CheckModeConsistency(mode);
         ps_r2_sun_static = false;
         ps_r2_advanced_pp = true;

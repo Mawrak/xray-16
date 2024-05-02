@@ -2,7 +2,9 @@
 
 #include "dxImGuiRender.h"
 
-#if defined(USE_DX11)
+#if defined(USE_DX9)
+#include <backends/imgui_impl_dx9.h>
+#elif defined(USE_DX11)
 #include <backends/imgui_impl_dx11.h>
 #elif defined(USE_OGL)
 #include <backends/imgui_impl_opengl3.h>
@@ -42,7 +44,9 @@ void dxImGuiRender::SetState(ImDrawData* data)
 
 void dxImGuiRender::Frame()
 {
-#if defined(USE_DX11)
+#if defined(USE_DX9)
+    ImGui_ImplDX9_NewFrame();
+#elif defined(USE_DX11)
     ImGui_ImplDX11_NewFrame();
 #elif defined(USE_OGL)
     ImGui_ImplOpenGL3_NewFrame();
@@ -51,7 +55,9 @@ void dxImGuiRender::Frame()
 
 void dxImGuiRender::Render(ImDrawData* data)
 {
-#if defined(USE_DX11)
+#if defined(USE_DX9)
+    ImGui_ImplDX9_RenderDrawData(data);
+#elif defined(USE_DX11)
     ImGui_ImplDX11_RenderDrawData(data);
 #elif defined(USE_OGL)
     ImGui_ImplOpenGL3_RenderDrawData(data);
@@ -72,10 +78,9 @@ void dxImGuiRender::OnDeviceCreate(ImGuiContext* context)
     );
     ImGui::SetCurrentContext(context);
 
-    ImGuiIO& io = ImGui::GetIO();
-    io.BackendRendererName = "xrRender";
-
-#if defined(USE_DX11)
+#if defined(USE_DX9)
+    ImGui_ImplDX9_Init(HW.pDevice);
+#elif defined(USE_DX11)
     ImGui_ImplDX11_Init(HW.pDevice, HW.get_context(CHW::IMM_CTX_ID));
 #elif defined(USE_OGL)
     ImGui_ImplOpenGL3_Init();
@@ -83,7 +88,9 @@ void dxImGuiRender::OnDeviceCreate(ImGuiContext* context)
 }
 void dxImGuiRender::OnDeviceDestroy()
 {
-#if defined(USE_DX11)
+#if defined(USE_DX9)
+    ImGui_ImplDX9_Shutdown();
+#elif defined(USE_DX11)
     ImGui_ImplDX11_Shutdown();
 #elif defined(USE_OGL)
     ImGui_ImplOpenGL3_Shutdown();
@@ -92,7 +99,9 @@ void dxImGuiRender::OnDeviceDestroy()
 
 void dxImGuiRender::OnDeviceResetBegin()
 {
-#if defined(USE_DX11)
+#if defined(USE_DX9)
+    ImGui_ImplDX9_InvalidateDeviceObjects();
+#elif defined(USE_DX11)
     ImGui_ImplDX11_InvalidateDeviceObjects();
 #elif defined(USE_OGL)
     ImGui_ImplOpenGL3_DestroyDeviceObjects();
@@ -101,7 +110,9 @@ void dxImGuiRender::OnDeviceResetBegin()
 
 void dxImGuiRender::OnDeviceResetEnd()
 {
-#if defined(USE_DX11)
+#if defined(USE_DX9)
+    ImGui_ImplDX9_CreateDeviceObjects();
+#elif defined(USE_DX11)
     ImGui_ImplDX11_CreateDeviceObjects();
 #elif defined(USE_OGL)
     ImGui_ImplOpenGL3_CreateDeviceObjects();

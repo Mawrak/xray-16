@@ -1,7 +1,6 @@
 #pragma once
 
-constexpr u32 occq_size_base = 768; // // queue for occlusion queries
-constexpr u32 occq_size = 2 * occq_size_base * R__NUM_PARALLEL_CONTEXTS; // // queue for occlusion queries
+constexpr u32 occq_size = 2 * 768 * R__NUM_PARALLEL_CONTEXTS; // // queue for occlusion queries
 
 // must conform to following order of allocation/free
 // a(A), a(B), a(C), a(D), ....
@@ -16,30 +15,30 @@ constexpr u32 occq_size = 2 * occq_size_base * R__NUM_PARALLEL_CONTEXTS; // // q
 class R_occlusion
 {
 private:
-    struct Query
+    struct _Q
     {
-#if defined(USE_DX11)
+        u32 order;
+#if defined(USE_DX9) || defined(USE_DX11)
         ID3DQuery* Q;
 #elif defined(USE_OGL)
         GLuint Q;
 #else
 #   error No graphics API selected or enabled!
 #endif
-        u32 order;
     };
 
-    static constexpr u32 iInvalidHandle = 0xFFFFFFFF;
+    static const u32 iInvalidHandle = 0xFFFFFFFF;
 
-    bool enabled;
-    xr_vector<Query> pool; // sorted (max ... min), insertions are usually at the end
-    xr_vector<Query> used; // id's are generated from this and it is cleared from back only
+    BOOL enabled; //
+    xr_vector<_Q> pool; // sorted (max ... min), insertions are usually at the end
+    xr_vector<_Q> used; // id's are generated from this and it is cleared from back only
     xr_vector<u32> fids; // free id's
 
     Lock render_lock{};
 public:
 #if defined(USE_DX11)
     typedef u64 occq_result;
-#elif defined(USE_OGL)
+#elif defined(USE_DX9) || defined(USE_OGL)
     typedef u32 occq_result;
 #else
 #   error No graphics API selected or enabled!

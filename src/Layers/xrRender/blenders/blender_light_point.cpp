@@ -172,7 +172,6 @@ void CBlender_accum_point::Compile(CBlender_Compile& C)
         C.r_dx11Texture("s_material", r2_material);
         C.r_dx11Texture("s_lmap", C.L_textures[0]);
         C.r_dx11Texture("s_accumulator", r2_RT_accum);
-        C.r_dx11Texture("s_diffuse", r2_RT_albedo);
 
         C.r_dx11Sampler("smp_nofilter");
         C.r_dx11Sampler("smp_material");
@@ -198,7 +197,6 @@ void CBlender_accum_point::Compile(CBlender_Compile& C)
         C.r_dx11Texture("s_lmap", C.L_textures[0]);
         C.r_dx11Texture("s_smap", r2_RT_smap_depth);
         C.r_dx11Texture("s_accumulator", r2_RT_accum);
-        C.r_dx11Texture("s_diffuse", r2_RT_albedo);
 
         C.r_dx11Sampler("smp_nofilter");
         C.r_dx11Sampler("smp_material");
@@ -226,7 +224,6 @@ void CBlender_accum_point::Compile(CBlender_Compile& C)
         C.r_dx11Texture("s_lmap", C.L_textures[0]);
         C.r_dx11Texture("s_smap", r2_RT_smap_depth);
         C.r_dx11Texture("s_accumulator", r2_RT_accum);
-        C.r_dx11Texture("s_diffuse", r2_RT_albedo);
 
         C.r_dx11Sampler("smp_nofilter");
         C.r_dx11Sampler("smp_material");
@@ -254,7 +251,6 @@ void CBlender_accum_point::Compile(CBlender_Compile& C)
         C.r_dx11Texture("s_lmap", C.L_textures[0]);
         C.r_dx11Texture("s_smap", r2_RT_smap_depth);
         C.r_dx11Texture("s_accumulator", r2_RT_accum);
-        C.r_dx11Texture("s_diffuse", r2_RT_albedo);
 
         C.r_dx11Sampler("smp_nofilter");
         C.r_dx11Sampler("smp_material");
@@ -273,9 +269,9 @@ void CBlender_accum_point_msaa::Compile(CBlender_Compile& C)
     IBlender::Compile(C);
 
     if (Name)
-        RImplementation.m_MSAASample = atoi(Definition);
+        GEnv.Render->m_MSAASample = atoi(Definition);
     else
-        RImplementation.m_MSAASample = -1;
+        GEnv.Render->m_MSAASample = -1;
 
     // BOOL	b_HW_smap		= RImplementation.o.HW_smap;
     // BOOL	b_HW_PCF		= RImplementation.o.HW_smap_PCF;
@@ -356,7 +352,6 @@ void CBlender_accum_point_msaa::Compile(CBlender_Compile& C)
         C.r_dx11Texture("s_material", r2_material);
         C.r_dx11Texture("s_lmap", C.L_textures[0]);
         C.r_dx11Texture("s_accumulator", r2_RT_accum);
-        C.r_dx11Texture("s_diffuse", r2_RT_albedo);
 
         C.r_dx11Sampler("smp_nofilter");
         C.r_dx11Sampler("smp_material");
@@ -382,7 +377,6 @@ void CBlender_accum_point_msaa::Compile(CBlender_Compile& C)
         C.r_dx11Texture("s_lmap", C.L_textures[0]);
         C.r_dx11Texture("s_smap", r2_RT_smap_depth);
         C.r_dx11Texture("s_accumulator", r2_RT_accum);
-        C.r_dx11Texture("s_diffuse", r2_RT_albedo);
 
         C.r_dx11Sampler("smp_nofilter");
         C.r_dx11Sampler("smp_material");
@@ -410,7 +404,6 @@ void CBlender_accum_point_msaa::Compile(CBlender_Compile& C)
         C.r_dx11Texture("s_lmap", C.L_textures[0]);
         C.r_dx11Texture("s_smap", r2_RT_smap_depth);
         C.r_dx11Texture("s_accumulator", r2_RT_accum);
-        C.r_dx11Texture("s_diffuse", r2_RT_albedo);
 
         C.r_dx11Sampler("smp_nofilter");
         C.r_dx11Sampler("smp_material");
@@ -438,7 +431,6 @@ void CBlender_accum_point_msaa::Compile(CBlender_Compile& C)
         C.r_dx11Texture("s_lmap", C.L_textures[0]);
         C.r_dx11Texture("s_smap", r2_RT_smap_depth);
         C.r_dx11Texture("s_accumulator", r2_RT_accum);
-        C.r_dx11Texture("s_diffuse", r2_RT_albedo);
 
         C.r_dx11Sampler("smp_nofilter");
         C.r_dx11Sampler("smp_material");
@@ -449,6 +441,6 @@ void CBlender_accum_point_msaa::Compile(CBlender_Compile& C)
         break;
     }
 #endif
-    RImplementation.m_MSAASample = -1;
+    GEnv.Render->m_MSAASample = -1;
 }
 #endif

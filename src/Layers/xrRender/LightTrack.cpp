@@ -159,8 +159,6 @@ inline void CROS_impl::accum_hemi(float* hemi_cube, Fvector3& dir, float scale)
 //////////////////////////////////////////////////////////////////////////
 void CROS_impl::update(IRenderable* O)
 {
-    ZoneScoped;
-
     // clip & verify
     if (dwFrame == Device.dwFrame)
         return;
@@ -455,9 +453,9 @@ void CROS_impl::prepare_lights(Fvector& position, IRenderable* O)
 
         static xr_vector<ISpatial*> lstSpatial;
 #if RENDER != R_R1
-        g_pGamePersistent->SpatialSpace.q_box(lstSpatial, 0, STYPE_LIGHTSOURCEHEMI, position, bb_size);
+        g_SpatialSpace->q_box(lstSpatial, 0, STYPE_LIGHTSOURCEHEMI, position, bb_size);
 #else
-        g_pGamePersistent->SpatialSpace.q_box(lstSpatial, 0, STYPE_LIGHTSOURCE, position, bb_size);
+        g_SpatialSpace->q_box(lstSpatial, 0, STYPE_LIGHTSOURCE, position, bb_size);
 #endif
         for (u32 o_it = 0; o_it < lstSpatial.size(); o_it++)
         {

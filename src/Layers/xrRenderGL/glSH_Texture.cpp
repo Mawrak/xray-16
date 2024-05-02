@@ -167,8 +167,6 @@ void CTexture::Load()
         return;
     }
 
-    ZoneScoped;
-
     Preload();
 
     // Check for OGM
@@ -306,7 +304,6 @@ void CTexture::Load()
 
 void CTexture::Unload()
 {
-    ZoneScoped;
 #ifdef DEBUG
     string_path				msg_buff;
     sprintf_s(msg_buff, sizeof(msg_buff), "* Unloading texture [%s] pSurface ID=%d", cName.c_str(), pSurface);

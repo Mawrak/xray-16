@@ -121,7 +121,6 @@ void CBlender_accum_direct_mask::Compile(CBlender_Compile& C)
         // C.r_Sampler_rtf		("s_normal",		r2_RT_N);
         C.r_dx11Texture("s_normal", r2_RT_N);
         C.r_dx11Texture("s_position", r2_RT_P);
-        C.r_dx11Texture("s_diffuse", r2_RT_albedo);
         C.r_dx11Sampler("smp_nofilter");
         C.r_ColorWriteEnable(false, false, false, false);
         C.r_End();
@@ -163,9 +162,9 @@ void CBlender_accum_direct_mask_msaa::Compile(CBlender_Compile& C)
     IBlender::Compile(C);
 
     if (Name)
-        RImplementation.m_MSAASample = atoi(Definition);
+        GEnv.Render->m_MSAASample = atoi(Definition);
     else
-        RImplementation.m_MSAASample = -1;
+        GEnv.Render->m_MSAASample = -1;
 
 #if RENDER == R_GL
     switch (C.iElement)
@@ -245,7 +244,6 @@ void CBlender_accum_direct_mask_msaa::Compile(CBlender_Compile& C)
         // C.r_Sampler_rtf		("s_normal",		r2_RT_N);
         C.r_dx11Texture("s_normal", r2_RT_N);
         C.r_dx11Texture("s_position", r2_RT_P);
-        C.r_dx11Texture("s_diffuse", r2_RT_albedo);
         C.r_dx11Sampler("smp_nofilter");
         C.r_ColorWriteEnable(false, false, false, false);
         C.r_End();
@@ -279,6 +277,6 @@ void CBlender_accum_direct_mask_msaa::Compile(CBlender_Compile& C)
         break;
     }
 #endif
-    RImplementation.m_MSAASample = -1;
+    GEnv.Render->m_MSAASample = -1;
 }
 #endif

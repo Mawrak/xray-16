@@ -49,15 +49,14 @@ static void XRMatrixInverse(Fmatrix* pout, float* pdeterminant, const Fmatrix& p
 // note: D3D uses [0..1] range for Z
 namespace sun
 {
-static constexpr Fvector3 corners[8] =
+static const Fvector3 corners[8] =
 {
     { -1, -1, +0 }, { -1, -1, +1 },
     { -1, +1, +1 }, { -1, +1, +0 },
     { +1, +1, +1 }, { +1, +1, +0 },
     { +1, -1, +1 }, { +1, -1, +0 }
 };
-
-static constexpr int facetable[6][4] =
+static const int facetable[6][4] =
 {
     { 6, 7, 5, 4 }, { 1, 0, 7, 6 },
     { 1, 2, 3, 0 }, { 3, 2, 4, 5 },
@@ -390,6 +389,9 @@ public:
             Fvector3 t1, t2;
             t1.sub(points[P.points[0]], points[P.points[1]]);
             t2.sub(points[P.points[0]], points[P.points[2]]);
+#ifdef USE_DX9
+            P.planeN.crossproduct(t1, t2).normalize();
+#else
             P.planeN.crossproduct(t1, t2);
 
             float len = P.planeN.magnitude();
@@ -415,6 +417,7 @@ public:
                     continue;
                 }
             }
+#endif
             P.planeD = -P.planeN.dotproduct(points[P.points[0]]);
 
             // verify
