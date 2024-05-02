@@ -1,4 +1,2 @@
 ready to merge:
-- changed-files:
-  - any-glob-to-any-file:
-    - '!**/*'
+- '!**/*'
